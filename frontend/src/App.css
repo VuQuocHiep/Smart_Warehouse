@@ -1,0 +1,702 @@
+.loginPage {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(440px, 0.8fr);
+  gap: 48px;
+  padding: 30px 56px 36px;
+  overflow: hidden;
+  color: #0f172a;
+  background:
+    radial-gradient(circle at 51% 29%, rgba(37, 99, 235, 0.14), transparent 19%),
+    radial-gradient(circle at 4% 67%, rgba(59, 130, 246, 0.12), transparent 27%),
+    linear-gradient(120deg, #ffffff 0%, #f8fbff 48%, #edf6ff 100%);
+}
+
+.brandPanel {
+  position: relative;
+  min-height: 720px;
+}
+
+.topBar,
+.brand,
+.topLinks,
+.formBrand,
+.formMeta,
+.loginButton {
+  display: flex;
+  align-items: center;
+}
+
+.topBar {
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.brand,
+.formBrand {
+  gap: 14px;
+  color: #0b63f6;
+  font-weight: 850;
+}
+
+.brand {
+  font-size: 29px;
+}
+
+.formBrand {
+  justify-content: center;
+  margin-bottom: 28px;
+  font-size: 23px;
+}
+
+.topLinks {
+  gap: 12px;
+  color: #667085;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.topLinks i {
+  width: 1px;
+  height: 22px;
+  margin: 0 12px;
+  background: #d8e0ec;
+}
+
+.topLinkIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: #516078;
+  font-weight: 800;
+}
+
+.chevron {
+  color: #718096;
+  font-size: 18px;
+}
+
+.logoMark {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #0b63f6 8%, #4f9cff 52%, #0755d9 100%);
+  box-shadow: inset 0 -9px 0 rgba(0, 47, 145, 0.18), 0 8px 18px rgba(11, 99, 246, 0.18);
+}
+
+.logoMark::before,
+.logoMark::after,
+.logoMark i,
+.logoMark b {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.logoMark::before {
+  left: 12px;
+  top: 9px;
+  width: 22px;
+  height: 22px;
+  clip-path: polygon(50% 0, 100% 25%, 50% 52%, 0 25%);
+}
+
+.logoMark::after {
+  left: 12px;
+  top: 20px;
+  width: 22px;
+  height: 16px;
+  clip-path: polygon(0 0, 50% 33%, 100% 0, 100% 44%, 50% 100%, 0 44%);
+  opacity: 0.8;
+}
+
+.logoMark i {
+  left: 7px;
+  top: 15px;
+  width: 13px;
+  height: 20px;
+  clip-path: polygon(0 0, 100% 30%, 100% 100%, 0 72%);
+  opacity: 0.72;
+}
+
+.logoMark b {
+  right: 7px;
+  top: 15px;
+  width: 13px;
+  height: 20px;
+  clip-path: polygon(0 30%, 100% 0, 100% 72%, 0 100%);
+  opacity: 0.72;
+}
+
+.logoMarkSmall {
+  width: 40px;
+  height: 40px;
+}
+
+.heroCopy {
+  width: min(680px, 100%);
+  margin-top: 70px;
+  text-align: left;
+  position: relative;
+  z-index: 4;
+}
+
+.heroCopy h1 {
+  margin: 0;
+  color: #0b1020;
+  font-size: 44px;
+  line-height: 1.16;
+  font-weight: 850;
+}
+
+.heroCopy p {
+  width: min(530px, 100%);
+  margin-top: 18px;
+  color: #4b5870;
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.warehouseScene {
+  position: relative;
+  height: 510px;
+  margin-top: 14px;
+}
+
+.warehouseScene > img {
+  position: absolute;
+  left: -90px;
+  right: -34px;
+  bottom: -18px;
+  width: calc(100% + 124px);
+  max-width: none;
+  height: 505px;
+  object-fit: cover;
+  object-position: left center;
+  border-radius: 8px;
+  filter: saturate(1.05) contrast(1.02);
+  box-shadow: 0 28px 70px rgba(37, 99, 235, 0.14);
+  mask-image:
+    linear-gradient(90deg, #000 0%, #000 72%, rgba(0, 0, 0, 0.58) 88%, transparent 100%),
+    linear-gradient(180deg, transparent 0%, #000 16%, #000 88%, transparent 100%);
+  mask-composite: intersect;
+}
+
+.orbitLines {
+  position: absolute;
+  right: -12px;
+  top: -58px;
+  width: 520px;
+  height: 380px;
+  border: 1px solid rgba(96, 165, 250, 0.23);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-10deg);
+}
+
+.orbitLines::before {
+  content: '';
+  position: absolute;
+  inset: 48px 44px 62px 8px;
+  border: 1px dashed rgba(96, 165, 250, 0.28);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+}
+
+.orbitLines span {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: #cfe3ff;
+}
+
+.orbitLines span:nth-child(1) {
+  left: 78px;
+  top: 94px;
+}
+
+.orbitLines span:nth-child(2) {
+  left: 198px;
+  top: 42px;
+}
+
+.orbitLines span:nth-child(3) {
+  right: 78px;
+  top: 72px;
+}
+
+.orbitLines span:nth-child(4) {
+  right: 2px;
+  top: 205px;
+}
+
+.featureStrip {
+  position: absolute;
+  left: -16px;
+  right: 8px;
+  bottom: -14px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  z-index: 5;
+}
+
+.featureStrip article {
+  min-height: 122px;
+  padding: 20px 18px;
+  border: 1px solid rgba(207, 219, 235, 0.82);
+  border-radius: 8px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 22px 52px rgba(15, 23, 42, 0.13);
+  backdrop-filter: blur(14px);
+}
+
+.featureStrip b {
+  font-size: 25px;
+}
+
+.blueIcon {
+  color: #0b63f6;
+}
+
+.greenIcon {
+  color: #08a65a;
+}
+
+.orangeIcon {
+  color: #ff8a00;
+}
+
+.violetIcon {
+  color: #6d28d9;
+}
+
+.featureStrip strong,
+.featureStrip span {
+  display: block;
+}
+
+.featureStrip strong {
+  margin: 8px 0;
+  color: #111827;
+  font-size: 16px;
+}
+
+.featureStrip span {
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.loginPanel {
+  display: grid;
+  place-items: center;
+}
+
+.loginCard {
+  width: min(100%, 604px);
+  padding: 40px 54px 28px;
+  border: 1px solid rgba(208, 218, 232, 0.95);
+  border-radius: 24px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(18px);
+}
+
+.loginCard h2 {
+  margin: 0;
+  text-align: center;
+  color: #0b1020;
+  font-size: 36px;
+  line-height: 1.15;
+  font-weight: 850;
+}
+
+.loginCard > p {
+  margin: 12px 0 28px;
+  text-align: center;
+  color: #667085;
+  font-size: 16px;
+}
+
+.field {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 0 18px;
+  border: 1px solid #d8e0ec;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.field span {
+  color: #667085;
+  font-size: 22px;
+}
+
+.field input,
+.roleSelect select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #111827;
+  background: transparent;
+  font: 16px/1.4 var(--sans);
+}
+
+.field input::placeholder {
+  color: #8b95a7;
+}
+
+.iconButton {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+}
+
+.roleLabel {
+  display: block;
+  margin: 2px 0 8px;
+  color: #344054;
+  font-size: 15px;
+}
+
+.roleSelect {
+  position: relative;
+  border: 1px solid #d8e0ec;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 15px 34px rgba(15, 23, 42, 0.08);
+}
+
+.roleLeadIcon {
+  position: absolute;
+  left: 20px;
+  top: 15px;
+  z-index: 1;
+  color: #344054;
+  font-size: 20px;
+}
+
+.roleSelect select {
+  height: 56px;
+  padding: 0 50px 0 56px;
+  appearance: none;
+  cursor: pointer;
+  color: #7a8496;
+}
+
+.roleSelect::after {
+  content: '⌄';
+  position: absolute;
+  right: 18px;
+  top: 12px;
+  color: #475467;
+  font-size: 24px;
+  pointer-events: none;
+}
+
+.roleMenu {
+  display: grid;
+  gap: 4px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid #edf2f7;
+  border-radius: 0 0 8px 8px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.roleMenu button {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  column-gap: 12px;
+  width: 100%;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.roleMenu button:hover,
+.roleMenu button.active {
+  background: #f8fbff;
+}
+
+.roleMenu button span {
+  width: 8px;
+  height: 8px;
+  align-self: center;
+  justify-self: center;
+  border-radius: 999px;
+  background: var(--role-color);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--role-color) 12%, transparent);
+}
+
+.roleMenu b {
+  color: #111827;
+  font-size: 14px;
+}
+
+.roleMenu small {
+  grid-column: 2;
+  color: #667085;
+  font-size: 12px;
+}
+
+.loginError {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #b42318;
+  background: #fff1f0;
+  font-size: 14px;
+}
+
+.formMeta {
+  justify-content: space-between;
+  gap: 14px;
+  margin: 16px 0 22px;
+  color: #475467;
+  font-size: 15px;
+}
+
+.formMeta label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formMeta input {
+  width: 18px;
+  height: 18px;
+  accent-color: #0b63f6;
+}
+
+.formMeta a {
+  color: #0b63f6;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.loginButton {
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 56px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(90deg, #0b63f6, #0878ff);
+  box-shadow: 0 16px 28px rgba(8, 99, 246, 0.25);
+  font: 750 17px/1 var(--sans);
+  cursor: pointer;
+}
+
+.loginButton:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.secureNote {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #edf2f7;
+  text-align: center;
+  color: #667085;
+  font-size: 14px;
+}
+
+.secureNote > span {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-top: -34px;
+  color: #64748b;
+  background: #ffffff;
+}
+
+.secureNote strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  color: #0b63f6;
+  background: #eef6ff;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.secureNote small {
+  font-size: 15px;
+}
+
+.secureNote i {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #0b63f6;
+}
+
+.rolePage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f7fbff;
+}
+
+.rolePage section {
+  width: min(560px, calc(100vw - 32px));
+  padding: 36px;
+  border: 1px solid #d9e3f2;
+  border-radius: 12px;
+  text-align: left;
+  background: #ffffff;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.1);
+}
+
+.rolePage p {
+  color: #0b63f6;
+  font-weight: 800;
+}
+
+.rolePage h1 {
+  margin: 14px 0;
+  font-size: 38px;
+  font-weight: 800;
+}
+
+.rolePage span {
+  color: #667085;
+}
+
+.adminRole {
+  background: #eef6ff;
+}
+
+.managerRole {
+  background: #edfdf6;
+}
+
+.staffRole {
+  background: #fff7ed;
+}
+
+@media (max-width: 1100px) {
+  .loginPage {
+    grid-template-columns: 1fr;
+    padding: 28px;
+  }
+
+  .loginPanel {
+    align-items: start;
+  }
+
+  .brandPanel {
+    min-height: 720px;
+  }
+}
+
+@media (max-width: 820px) {
+  .loginPage {
+    padding: 20px;
+  }
+
+  .topBar,
+  .formMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topLinks {
+    display: none;
+  }
+
+  .brand {
+    font-size: 22px;
+  }
+
+  .heroCopy {
+    margin-top: 38px;
+  }
+
+  .heroCopy h1,
+  .loginCard h2 {
+    font-size: 30px;
+  }
+
+  .heroCopy p {
+    font-size: 17px;
+  }
+
+  .warehouseScene {
+    height: auto;
+    padding-bottom: 20px;
+  }
+
+  .warehouseScene > img {
+    position: relative;
+    left: -20px;
+    width: calc(100% + 40px);
+    max-width: none;
+    height: 360px;
+    margin-top: 20px;
+    mask-image: linear-gradient(180deg, #000 0%, #000 76%, transparent 100%);
+  }
+
+  .orbitLines {
+    display: none;
+  }
+
+  .featureStrip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .featureStrip {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin-top: 18px;
+  }
+
+  .brandPanel {
+    min-height: auto;
+  }
+
+  .loginCard {
+    padding: 30px 20px 24px;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .metricGrid,
+  .featureStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .loginCard h2 {
+    font-size: 28px;
+  }
+}
