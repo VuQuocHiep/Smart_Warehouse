@@ -1,0 +1,280 @@
+.manager-layout {
+  min-height: 100svh;
+  background: #f6f9fe;
+}
+
+.manager-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: auto;
+  border-right: 1px solid #e6edf7;
+  background: #ffffff !important;
+  box-shadow: 10px 0 28px rgba(15, 23, 42, 0.04);
+}
+
+.manager-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 78px;
+  padding: 0 24px;
+
+  &--collapsed {
+    justify-content: center;
+    padding: 0 12px;
+  }
+}
+
+.manager-logo-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 22px;
+  background: linear-gradient(145deg, #0b63f6 0%, #5ca4ff 100%);
+  box-shadow: 0 10px 24px rgba(11, 99, 246, 0.22);
+}
+
+.manager-brand-text {
+  color: #0b63f6;
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.manager-menu {
+  border-inline-end: 0 !important;
+  padding: 0 16px 86px;
+  background: transparent !important;
+  font-weight: 650;
+
+  .ant-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 52px;
+    line-height: 52px;
+    margin: 5px 0;
+    padding-inline: 18px !important;
+    border-radius: 8px;
+    color: #344054;
+
+    .ant-menu-title-content {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      margin-inline-start: 0 !important;
+      line-height: 1;
+    }
+
+    a {
+      display: block;
+      min-width: 0;
+      color: inherit;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .anticon {
+      flex: 0 0 20px;
+      font-size: 20px;
+      line-height: 1;
+    }
+  }
+
+  .ant-menu-item-selected {
+    color: #0b63f6;
+    background: #eef6ff !important;
+
+    a {
+      color: #0b63f6;
+    }
+  }
+}
+
+.manager-collapse-button,
+.manager-collapse-button--centered {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  height: 46px;
+  border-top: 1px solid #eef2f7;
+  border-radius: 8px;
+  color: #5d6b82;
+  background: #ffffff;
+}
+
+.manager-collapse-button {
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-inline: 16px;
+  font-weight: 650;
+
+  &--centered {
+    left: 18px;
+    right: 18px;
+  }
+}
+
+.manager-main {
+  min-width: 0;
+  background: #f6f9fe;
+}
+
+.manager-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 78px;
+  padding: 0 28px;
+  border-bottom: 1px solid #e6edf7;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+}
+
+.manager-header-menu-button {
+  width: 44px;
+  height: 44px;
+  color: #334155;
+  font-size: 21px;
+}
+
+.manager-search {
+  width: min(520px, 44vw);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.manager-search-icon {
+  color: #475569;
+  font-size: 18px;
+}
+
+.manager-account-area {
+  margin-left: auto;
+}
+
+.manager-account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.manager-icon-button {
+  width: 42px;
+  height: 42px;
+  color: #334155;
+  font-size: 20px;
+}
+
+.manager-avatar {
+  color: #ffffff;
+  background: linear-gradient(145deg, #0b63f6, #60a5fa);
+}
+
+.manager-name {
+  color: #111827;
+  font-size: 16px;
+}
+
+.manager-down-icon {
+  color: #334155;
+  font-size: 13px;
+}
+
+.manager-account-popover {
+  width: 280px;
+}
+
+.manager-account-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef2f7;
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    max-width: 190px;
+    overflow: hidden;
+    color: #111827;
+    font-size: 15px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    margin-top: 3px;
+    color: #0b63f6;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+}
+
+.manager-account-info {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+
+  div {
+    display: grid;
+    gap: 2px;
+  }
+
+  span {
+    color: #667085;
+    font-size: 12px;
+  }
+
+  strong {
+    overflow-wrap: anywhere;
+    color: #111827;
+    font-size: 14px;
+  }
+}
+
+.manager-content {
+  min-height: calc(100svh - 78px);
+  padding: 24px;
+  background: #f6f9fe;
+}
+
+@media (max-width: 768px) {
+  .manager-header {
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .manager-search {
+    width: min(360px, 48vw);
+  }
+
+  .manager-name,
+  .manager-down-icon {
+    display: none;
+  }
+
+  .manager-content {
+    padding: 16px;
+  }
+}
