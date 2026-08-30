@@ -25,10 +25,16 @@ public class UserService {
         return userRepository.save(userEntity);
     }
     public UserEntity update(UserRequest request,String id){
-        if(!userRepository.existsByUserIdAndDeletedFalse(id)){
-            throw new RuntimeException("Không tồn tại!");
+        UserEntity userEntity = userRepository.findByUserIdAndDeletedFalse(id).orElseThrow(()->new RuntimeException("Không tồn tại!"));
+        userRepository.findByEmailAndDeletedFalse(request.getEmail()).ifPresent(existingUser -> {
+            if (!existingUser.getUserId().equals(id)) {
+                throw new DuplicateKeyException("Đã tồn tại!");
+            }
+        });
+        if (request.getPassword() != null && request.getPassword().isBlank()) {
+            request.setPassword(null);
         }
-        UserEntity userEntity = userMapper.toEntity(request);
+        userMapper.updateEntity(request, userEntity);
         return userRepository.save(userEntity);
     }
     public void delete(String id){

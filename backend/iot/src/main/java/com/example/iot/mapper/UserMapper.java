@@ -23,12 +23,12 @@ import lombok.RequiredArgsConstructor;
 public class UserMapper {
     private final RoleRepository roleRepository;
     public UserEntity toEntity(UserRequest request){
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         Set<RoleEntity> role = new HashSet<>();
         for(String x:request.getRole()){
             RoleEntity a = roleRepository.findByNameAndDeletedFalse(x).orElseThrow(()->new RuntimeException("Không tồn tại!"));
             role.add(a);
         }
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         UserEntity userEntity = UserEntity.builder()
                                         .email(request.getEmail())
                                         .password(passwordEncoder.encode(request.getPassword()))
@@ -39,5 +39,21 @@ public class UserMapper {
                                         .statusUser(StatusUser.ACTIVE)
                                         .build();
         return userEntity;
+    }
+    public void updateEntity(UserRequest request, UserEntity userEntity){
+        userEntity.setEmail(request.getEmail());
+        userEntity.setFirstname(request.getFirstname());
+        userEntity.setLastname(request.getLastname());
+        userEntity.setPhone(request.getPhone());
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+            userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+        Set<RoleEntity> role = new HashSet<>();
+        for(String x:request.getRole()){
+            RoleEntity a = roleRepository.findByNameAndDeletedFalse(x).orElseThrow(()->new RuntimeException("Không tồn tại!"));
+            role.add(a);
+        }
+        userEntity.setRole(role);
     }
 }

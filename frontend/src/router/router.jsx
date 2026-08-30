@@ -38,6 +38,8 @@ import Stock_InManager from '../pages/manager/stock-in.jsx'
 import Stock_OutManager from '../pages/manager/stock-out.jsx'
 import WarehouseManager from '../pages/manager/warehouse.jsx'
 import WeighingManager from '../pages/manager/weighing.jsx'
+import AddUser from '../pages/admin/addUser.jsx'
+import UpdateUser from '../pages/admin/updateUser.jsx'
 function Router() {
   const auth = getStoredAuth()
   return (
@@ -59,6 +61,8 @@ function Router() {
         <Route path="history" element={<History/>}/>
         <Route path="user" element={<User/>}/>
         <Route path="setting" element={<Setting/>}/>
+        <Route path='addUser' element={<AddUser/>}/>
+        <Route path='updateUser/:id' element={<UpdateUser/>}/>
       </Route>
       <Route path="/manager" element={<RequireRole role="manager"><Manager /></RequireRole>}>
         <Route index element={<Navigate to="overview" replace />} />
