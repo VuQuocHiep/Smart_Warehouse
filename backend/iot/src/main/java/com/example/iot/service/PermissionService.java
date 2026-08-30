@@ -2,6 +2,7 @@ package com.example.iot.service;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.example.iot.dto.request.PermissionRequest;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class PermissionService {
     private final PermissionRepository permissionRepository;
     private final PermissionMapper permissionMapper;
+    @PreAuthorize("hasRole('ADMIN')")
     public PermissionEntity create(PermissionRequest request){
         PermissionEntity permissionEntity = permissionMapper.toPermissionEntity(request);
         if(permissionRepository.existsByNameAndDeletedFalse(permissionEntity.getName())){
@@ -24,6 +26,7 @@ public class PermissionService {
         }
         return permissionRepository.save(permissionEntity);
     }
+    @PreAuthorize("hasRole('ADMIN')")
     public PermissionEntity update(PermissionRequest request,String id){
         PermissionEntity permissionEntity = permissionMapper.toPermissionEntity(request);
         if(!permissionRepository.existsByPermissionIdAndDeletedFalse(id)){
@@ -31,11 +34,13 @@ public class PermissionService {
         }
         return permissionRepository.save(permissionEntity);
     }
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(String id){
         PermissionEntity permissionEntity = permissionRepository.findByPermissionIdAndDeletedFalse(id).orElseThrow(()->new RuntimeException("Không tồn tại!"));
         permissionEntity.setDeleted(true);
         permissionRepository.save(permissionEntity);
     }
+    @PreAuthorize("hasRole('ADMIN')")
     public List<PermissionEntity> getAll(){
         return permissionRepository.findByDeletedFalse();
     } 
