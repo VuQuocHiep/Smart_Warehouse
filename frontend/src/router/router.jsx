@@ -40,6 +40,7 @@ import WarehouseManager from '../pages/manager/warehouse.jsx'
 import WeighingManager from '../pages/manager/weighing.jsx'
 import AddUser from '../pages/admin/addUser.jsx'
 import UpdateUser from '../pages/admin/updateUser.jsx'
+import ScannerStaff from '../pages/staff/scanner.jsx'
 function Router() {
   const auth = getStoredAuth()
   return (
@@ -88,6 +89,7 @@ function Router() {
         <Route path="stock-in" element={<Stock_InStaff/>}/>
         <Route path="stock-out" element={<Stock_OutStaff/>}/>
         <Route path="weighing" element={<WeighingStaff/>}/>
+        <Route path="scanner" element={<ScannerStaff/>}/>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
