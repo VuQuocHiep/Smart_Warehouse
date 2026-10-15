@@ -65,7 +65,7 @@ public class ProductService {
         return productRepository.findByNameAndDeletedFalse(name).orElseThrow(()->new RuntimeException("Không tồn tại!"));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     public ProductEntity getProductBySku(String sku){
         return productRepository.findBySkuAndDeletedFalse(sku).orElseThrow(()->new RuntimeException("Không tồn tại!"));
     }
