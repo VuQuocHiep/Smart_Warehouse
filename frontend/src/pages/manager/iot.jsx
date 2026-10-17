@@ -1,3 +1,1 @@
-export default function IotManager(){
-    
-}
+export { default } from '../admin/iot.jsx'

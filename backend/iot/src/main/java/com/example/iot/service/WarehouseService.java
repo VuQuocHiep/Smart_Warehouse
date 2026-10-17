@@ -29,6 +29,9 @@ public class WarehouseService {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public WarehouseEntity update(WarehouseRequest request,String id){
         WarehouseEntity warehouseEntity = warehouseRepository.findByWarehouseIdAndDeletedFalse(id).orElseThrow(()->new RuntimeException("Không tồn tại!"));
+        if (warehouseEntity.getMonitoringSlot() != null && !warehouseEntity.getName().equals(request.getName())) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Giữ tên Kho 1–4 để thống nhất giám sát");
+        }
         warehouseRepository.findByNameAndDeletedFalse(request.getName()).ifPresent(existingWarehouse -> {
             if (!existingWarehouse.getWarehouseId().equals(id)) {
                 throw new DuplicateException("Đã tồn tại!");
@@ -40,6 +43,9 @@ public class WarehouseService {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public void delete(String id){
         WarehouseEntity warehouseEntity = warehouseRepository.findByWarehouseIdAndDeletedFalse(id).orElseThrow(()->new RuntimeException("Không tồn tại!"));
+        if (warehouseEntity.getMonitoringSlot() != null) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Không thể xóa 4 kho giám sát chính");
+        }
         warehouseEntity.setDeleted(true);
         warehouseRepository.save(warehouseEntity);
     }

@@ -12,6 +12,9 @@ export const userApi = {
     getAll:()=>{
         return api.get("/user/getAll")
     },
+    getRoleStats:()=>{
+        return api.get("/user/roleStats")
+    },
     getUserById:(id)=>{
         return api.get(`/user/getUserById/${encodeURIComponent(id)}`)
     }
@@ -20,4 +23,5 @@ export const createUser=userApi.createUser;
 export const updateUser=userApi.updateUser;
 export const deleteUser=userApi.deleteUser;
 export const getAll=userApi.getAll;
+export const getRoleStats=userApi.getRoleStats;
 export const getUserById=userApi.getUserById;

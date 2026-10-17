@@ -1,4 +1,5 @@
-import { useSelector } from 'react-redux'
+import DashboardOverview from '../../components/DashboardOverview.jsx'
+
 export default function OverviewAdmin() {
-  const user = useSelector((state) => state.user.user)
+  return <DashboardOverview role="admin" />
 }

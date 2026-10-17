@@ -1,0 +1,6 @@
+__pycache__/
+.venv/
+.arduino-build/
+arduino-build.log
+data/mq2_readings.csv
+models/mq2_risk_model*

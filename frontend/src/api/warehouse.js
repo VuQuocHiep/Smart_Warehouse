@@ -1,6 +1,7 @@
 import { api } from "../api/api"
 
 export const warehouseApi = {
+    monitoring:()=>api.get('/api/warehouses/monitoring'),
     createWarehouse:(data)=>{
         return api.post("/warehouse/create",data)
     },

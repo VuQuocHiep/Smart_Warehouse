@@ -23,6 +23,7 @@ public class SecurityConfig {
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.authorizeHttpRequests(authorizeHttpRequestsCustomizer->authorizeHttpRequestsCustomizer
             .requestMatchers(HttpMethod.POST,"/auth/login").permitAll()
+            .requestMatchers(HttpMethod.POST,"/api/sensor/readings").permitAll()
             .anyRequest().authenticated()
         );
         http.cors(Customizer.withDefaults());

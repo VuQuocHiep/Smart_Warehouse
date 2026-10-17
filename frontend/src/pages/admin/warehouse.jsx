@@ -1,189 +1,90 @@
-import { DeleteOutlined, EditOutlined, EnvironmentOutlined, HomeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
-import { Button, Empty, Form, Input, message, Modal, Popconfirm, Typography } from "antd";
-import { useEffect, useMemo, useState } from "react";
-import { createWarehouse, deleteWarehouse, getAllWarehouse, updateWarehouse } from "../../api/warehouse";
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Alert, Button, Card, Descriptions, Empty, Form, Input, Modal, Typography, message } from 'antd'
+import { ArrowRightOutlined, EditOutlined, HomeOutlined, ReloadOutlined } from '@ant-design/icons'
+import { updateWarehouse, warehouseApi } from '../../api/warehouse'
+import WarehouseSelector from '../../components/WarehouseSelector'
+import { readingStatus, sensorValue, SENSOR_STALE_MS } from '../../utils/warehouseDisplay'
 
-const { Text, Title } = Typography;
+const displayDescription = warehouse => ['Kho mô phỏng: dữ liệu môi trường giả lập', 'Giám sát môi trường thực tế từ ESP32'].includes(warehouse.description)
+  ? 'Giám sát môi trường kho hàng' : warehouse.description
 
-export default function Warehouse(){
-    const [form] = Form.useForm();
-    const [data,setData] = useState([]);
-    const [keyword,setKeyword] = useState("");
-    const [loading,setLoading] = useState(false);
-    const [saving,setSaving] = useState(false);
-    const [modalOpen,setModalOpen] = useState(false);
-    const [editing,setEditing] = useState(null);
+export default function Warehouse() {
+  const [rows, setRows] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
+  const [now, setNow] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const selected = rows.find(r => r.warehouse.warehouseId === selectedId) || rows[0]
 
-    const fetchWarehouses = async()=>{
-        setLoading(true);
-        try {
-            const response = await getAllWarehouse();
-            setData(Array.isArray(response) ? response : response?.data || []);
-        } catch (error) {
-            message.error(error.message || "Không thể tải danh sách kho hàng");
-        } finally {
-            setLoading(false);
-        }
+  const reload = async () => {
+    setLoading(true)
+    try { setRows(await warehouseApi.monitoring()); setNow(Date.now()); setError('') }
+    catch (e) { setError(e.message || 'Không tải được kho hàng') }
+    finally { setLoading(false) }
+  }
+  useEffect(() => {
+    let active = true
+    let pending = false
+    const poll = async () => {
+      if (pending) return
+      pending = true
+      try { const data = await warehouseApi.monitoring(); if (active) { setRows(data); setNow(Date.now()); setError('') } }
+      catch (e) { if (active) setError(e.message || 'Không tải được kho hàng') }
+      finally { pending = false; if (active) setLoading(false) }
     }
+    poll()
+    const timer = setInterval(poll, 5000)
+    return () => { active = false; clearInterval(timer) }
+  }, [])
 
-    useEffect(()=>{
-        fetchWarehouses();
-    },[])
+  const save = async values => {
+    setSaving(true)
+    try { await updateWarehouse({ ...values, name: editing.name }, editing.warehouseId); setEditing(null); await reload(); message.success('Đã cập nhật kho hàng') }
+    catch (e) { message.error(e.message) }
+    finally { setSaving(false) }
+  }
 
-    const filteredData = useMemo(()=>{
-        const searchValue = keyword.trim().toLowerCase();
-        if (!searchValue) {
-            return data;
-        }
-        return data.filter((item)=>{
-            return `${item?.name || ""} ${item?.address || ""} ${item?.description || ""}`.toLowerCase().includes(searchValue);
-        })
-    },[data,keyword])
-
-    const openCreate = ()=>{
-        setEditing(null);
-        form.resetFields();
-        setModalOpen(true);
-    }
-
-    const openUpdate = (record)=>{
-        setEditing(record);
-        form.setFieldsValue(record);
-        setModalOpen(true);
-    }
-
-    const closeModal = ()=>{
-        setModalOpen(false);
-        setEditing(null);
-        form.resetFields();
-    }
-
-    const onFinish = async(value)=>{
-        setSaving(true);
-        try {
-            if (editing) {
-                await updateWarehouse(value,editing.warehouseId);
-                message.success("Cập nhật kho hàng thành công");
-            } else {
-                await createWarehouse(value);
-                message.success("Tạo kho hàng thành công");
-            }
-            closeModal();
-            fetchWarehouses();
-        } catch (error) {
-            message.error(error.message || "Không thể lưu kho hàng");
-        } finally {
-            setSaving(false);
-        }
-    }
-
-    const handleDelete = async(id)=>{
-        try {
-            await deleteWarehouse(id);
-            message.success("Xóa kho hàng thành công");
-            fetchWarehouses();
-        } catch (error) {
-            message.error(error.message || "Không thể xóa kho hàng");
-        }
-    }
-
-    return(
-        <div className="warehouse-map-page">
-            <div className="warehouse-topbar">
-                <div>
-                    <Text className="catalog-kicker"><HomeOutlined /> Kho hàng</Text>
-                    <Title level={2}>Không gian kho</Title>
-                    <Text className="catalog-description">Theo dõi địa điểm, mô tả và trạng thái các kho đang vận hành.</Text>
-                </div>
-                <Button icon={<PlusOutlined />} onClick={openCreate} size="large" type="primary">
-                    Tạo kho hàng
-                </Button>
-            </div>
-
-            <div className="warehouse-metrics">
-                <div>
-                    <span>Tổng kho</span>
-                    <strong>{data.length}</strong>
-                </div>
-                <div>
-                    <span>Đang hiển thị</span>
-                    <strong>{filteredData.length}</strong>
-                </div>
-                <div>
-                    <span>Có mô tả</span>
-                    <strong>{data.filter((item)=>item?.description).length}</strong>
-                </div>
-            </div>
-
-            <div className="warehouse-command">
-                <Input
-                    allowClear
-                    onChange={(event)=>setKeyword(event.target.value)}
-                    placeholder="Tìm tên kho, địa chỉ, mô tả..."
-                    prefix={<SearchOutlined />}
-                    size="large"
-                    value={keyword}
-                />
-                <Button icon={<ReloadOutlined />} loading={loading} onClick={fetchWarehouses} size="large">
-                    Tải lại
-                </Button>
-            </div>
-
-            {filteredData.length ? (
-                <div className="warehouse-grid">
-                    {filteredData.map((item,index)=>(
-                        <article className="warehouse-card" key={item.warehouseId}>
-                            <div className="warehouse-card-index">{String(index + 1).padStart(2,"0")}</div>
-                            <div className="warehouse-card-icon"><HomeOutlined /></div>
-                            <div className="warehouse-card-content">
-                                <Text className="warehouse-card-label">Warehouse</Text>
-                                <h3>{item?.name}</h3>
-                                <p><EnvironmentOutlined /> {item?.address}</p>
-                                <span>{item?.description || "Chưa có mô tả cho kho hàng này."}</span>
-                            </div>
-                            <div className="warehouse-card-actions">
-                                <Button icon={<EditOutlined />} onClick={()=>openUpdate(item)}>
-                                    Sửa
-                                </Button>
-                                <Popconfirm
-                                    title="Xóa kho hàng"
-                                    description="Bạn có chắc chắn muốn xóa kho hàng này?"
-                                    onConfirm={()=>handleDelete(item.warehouseId)}
-                                    okText="Xóa"
-                                    cancelText="Hủy"
-                                >
-                                    <Button danger icon={<DeleteOutlined />} />
-                                </Popconfirm>
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            ) : (
-                <div className="catalog-empty">
-                    <Empty description="Chưa có kho hàng phù hợp" />
-                </div>
-            )}
-
-            <Modal
-                confirmLoading={saving}
-                okText={editing ? "Lưu thay đổi" : "Tạo mới"}
-                onCancel={closeModal}
-                onOk={()=>form.submit()}
-                open={modalOpen}
-                title={editing ? "Cập nhật kho hàng" : "Tạo kho hàng"}
-            >
-                <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
-                    <Form.Item label="Tên kho" name="name" rules={[{required:true,message:"Vui lòng nhập tên kho"}]}>
-                        <Input prefix={<HomeOutlined />} placeholder="Kho trung tâm" size="large"/>
-                    </Form.Item>
-                    <Form.Item label="Địa chỉ" name="address" rules={[{required:true,message:"Vui lòng nhập địa chỉ"}]}>
-                        <Input prefix={<EnvironmentOutlined />} placeholder="Số nhà, phường/xã, quận/huyện..." size="large"/>
-                    </Form.Item>
-                    <Form.Item label="Mô tả" name="description">
-                        <Input.TextArea autoSize={{ minRows: 3, maxRows: 5 }} placeholder="Ghi chú thêm về kho hàng"/>
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </div>
-    )
+  return <main className="warehouse-monitor-page">
+    <div className="warehouse-monitor-header"><div>
+      <span className="warehouse-monitor-kicker"><HomeOutlined /> Quản lý kho hàng</span>
+      <Typography.Title level={2}>Không gian 4 kho</Typography.Title>
+      <p>Chọn kho để xem môi trường, thông tin kho và các kệ hàng.</p>
+    </div><Button icon={<ReloadOutlined />} loading={loading} onClick={reload}>Tải lại</Button></div>
+    {error && <Alert type="error" showIcon title={error} />}
+    <WarehouseSelector warehouses={rows} selectedId={selected?.warehouse.warehouseId} onSelect={setSelectedId} now={now} />
+    {!rows.length && !loading && !error && <Empty description="Chưa có kho. Khởi động lại backend để cập nhật dữ liệu 4 kho." />}
+    {selected && <div className="warehouse-detail-grid">
+      <Card title={`Môi trường ${selected.warehouse.name}`}>
+        <Alert type={selected.reading.recordedAt && now - new Date(selected.reading.recordedAt).getTime() <= SENSOR_STALE_MS ? 'success' : 'warning'} showIcon
+          title={readingStatus(selected.reading, now)} />
+        <div className="warehouse-sensor-grid">{[['Nhiệt độ', 'temperature', '°C'], ['Độ ẩm', 'humidity', '%'], ['Khí gas', 'gas', 'ADC']].map(([label, key, unit]) =>
+          <div className="warehouse-sensor-box" key={key}><span>{label}</span><strong>{sensorValue(selected.reading[key], unit)}</strong></div>)}</div>
+        <Typography.Paragraph type="secondary">{selected.reading.recordedAt ? `Cập nhật: ${new Date(selected.reading.recordedAt).toLocaleString('vi-VN')}` : 'Đang chờ dữ liệu môi trường kho.'}</Typography.Paragraph>
+        <Button type="primary" icon={<ArrowRightOutlined />} onClick={() => navigate(`${location.pathname.split('/').slice(0, 2).join('/')}/shelve?warehouse=${encodeURIComponent(selected.warehouse.warehouseId)}`)}>Xem {selected.shelfCount} kệ của {selected.warehouse.name}</Button>
+      </Card>
+      <Card title="Thông tin kho" extra={<Button icon={<EditOutlined />} onClick={() => { form.setFieldsValue({ ...selected.warehouse, description: displayDescription(selected.warehouse) }); setEditing(selected.warehouse) }}>Sửa</Button>}>
+        <Descriptions column={1} items={[
+          { key: 'name', label: 'Tên kho', children: selected.warehouse.name },
+          ...(selected.warehouse.monitoringDeviceCode ? [{ key: 'device', label: 'Thiết bị giám sát kho', children: selected.warehouse.monitoringDeviceCode }] : []),
+          { key: 'address', label: 'Địa chỉ', children: selected.warehouse.address || 'Chưa cập nhật' },
+          { key: 'description', label: 'Mô tả', children: displayDescription(selected.warehouse) || 'Chưa có mô tả' },
+          { key: 'shelves', label: 'Kệ hàng', children: selected.shelfCount },
+          { key: 'products', label: 'Loại sản phẩm', children: selected.productCount },
+        ]} />
+      </Card>
+    </div>}
+    <Modal title={`Cập nhật ${editing?.name || 'kho'}`} open={!!editing} onCancel={() => setEditing(null)} onOk={() => form.submit()} okText="Lưu" cancelText="Hủy" confirmLoading={saving}>
+      <Form form={form} layout="vertical" onFinish={save}>
+        <Form.Item label="Tên kho"><Input value={editing?.name} disabled /></Form.Item>
+        <Form.Item label="Địa chỉ" name="address" rules={[{ required: true, whitespace: true, message: 'Vui lòng nhập địa chỉ' }]}><Input maxLength={255} /></Form.Item>
+        <Form.Item label="Mô tả" name="description"><Input.TextArea rows={4} /></Form.Item>
+      </Form>
+    </Modal>
+  </main>
 }

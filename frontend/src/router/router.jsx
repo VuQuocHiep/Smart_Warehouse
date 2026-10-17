@@ -22,6 +22,7 @@ import History from "../pages/admin/history.jsx"
 import User from "../pages/admin/user.jsx"
 import Setting from "../pages/admin/setting.jsx"
 import HistoryStaff from '../pages/staff/history.jsx'
+import AlertStaff from '../pages/staff/alert.jsx'
 import RfidStaff from '../pages/staff/rfid.jsx'
 import ShelveStaff from '../pages/staff/shelve.jsx'
 import Stock_InStaff from '../pages/staff/stock-in.jsx'
@@ -88,6 +89,7 @@ function Router() {
         <Route path="stock-in" element={<Stock_InStaff/>}/>
         <Route path="stock-out" element={<Stock_OutStaff/>}/>
         <Route path="weighing" element={<WeighingStaff/>}/>
+        <Route path="alert" element={<AlertStaff/>}/>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

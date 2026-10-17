@@ -1,0 +1,65 @@
+{
+  "accuracy": 0.9932141146415456,
+  "classes": {
+    "0": "NORMAL",
+    "1": "WARNING",
+    "2": "DANGER",
+    "3": "EMERGENCY"
+  },
+  "class_counts": {
+    "0": 15524,
+    "1": 181,
+    "2": 45792,
+    "3": 1133
+  },
+  "confusion_matrix": [
+    [
+      3088,
+      0,
+      17,
+      0
+    ],
+    [
+      0,
+      36,
+      0,
+      0
+    ],
+    [
+      66,
+      1,
+      9090,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      227
+    ]
+  ],
+  "metadata": {
+    "source_csv": "data\\smoke_detection_iot.csv",
+    "temperature_column": "Temperature[C]",
+    "humidity_column": "Humidity[%]",
+    "gas_proxy_column": "TVOC[ppb]",
+    "fire_alarm_column": "Fire Alarm",
+    "label_names": {
+      "0": "NORMAL",
+      "1": "WARNING",
+      "2": "DANGER",
+      "3": "EMERGENCY"
+    },
+    "action_names": {
+      "0": "GREEN_LED",
+      "1": "RED_LED",
+      "2": "RED_LED_FAN",
+      "3": "RED_LED_FAN_BUZZER"
+    },
+    "feature_names": [
+      "temperature",
+      "humidity",
+      "gas"
+    ]
+  }
+}

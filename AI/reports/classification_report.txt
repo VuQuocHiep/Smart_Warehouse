@@ -1,0 +1,10 @@
+              precision    recall  f1-score   support
+
+      NORMAL       0.98      0.99      0.99      3105
+     WARNING       0.97      1.00      0.99        36
+      DANGER       1.00      0.99      1.00      9158
+   EMERGENCY       1.00      1.00      1.00       227
+
+    accuracy                           0.99     12526
+   macro avg       0.99      1.00      0.99     12526
+weighted avg       0.99      0.99      0.99     12526

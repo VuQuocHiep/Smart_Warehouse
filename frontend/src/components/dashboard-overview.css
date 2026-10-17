@@ -1,0 +1,373 @@
+.overview-page {
+  display: grid;
+  gap: 18px;
+  color: #172033;
+}
+
+.overview-command-center,
+.overview-command-metric,
+.overview-workflow,
+.overview-panel {
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+}
+
+.overview-command-center {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px;
+}
+
+.overview-command-copy span,
+.overview-section-header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #52627a;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.overview-command-copy h1 {
+  margin: 7px 0 6px;
+  color: #06142f;
+  font-size: 30px;
+  line-height: 1.12;
+}
+
+.overview-command-copy p,
+.overview-action-list span,
+.overview-product-table small,
+.overview-warehouse-network em {
+  color: #667085;
+  font-style: normal;
+}
+
+.overview-command-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.overview-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.overview-command-metric {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 112px;
+  padding: 16px;
+}
+
+.overview-command-metric > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  font-size: 22px;
+}
+
+.overview-command-metric small,
+.overview-command-metric strong,
+.overview-command-metric em {
+  display: block;
+}
+
+.overview-command-metric small {
+  color: #667085;
+  font-weight: 800;
+}
+
+.overview-command-metric strong {
+  margin-top: 4px;
+  color: #06142f;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.overview-command-metric em {
+  margin-top: 6px;
+  color: #667085;
+  font-size: 13px;
+  font-style: normal;
+}
+
+.overview-command-metric--product > span { color: #2563eb; background: #dbeafe; }
+.overview-command-metric--warehouse > span { color: #0f766e; background: #ccfbf1; }
+.overview-command-metric--people > span { color: #7c3aed; background: #ede9fe; }
+.overview-command-metric--attention > span { color: #b45309; background: #fef3c7; }
+
+.overview-workflow,
+.overview-panel {
+  padding: 20px;
+}
+
+.overview-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.overview-section-header strong {
+  display: block;
+  margin-top: 4px;
+  color: #06142f;
+  font-size: 20px;
+}
+
+.overview-workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.overview-workflow-step {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.overview-workflow-step > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.overview-workflow-step span {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.overview-workflow-step strong {
+  color: #06142f;
+  font-size: 17px;
+}
+
+.overview-workflow-step small {
+  color: #667085;
+}
+
+.overview-workflow-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef6;
+}
+
+.overview-workflow-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.overview-workflow-step--store .overview-workflow-track i { background: #0f766e; }
+.overview-workflow-step--audit .overview-workflow-track i { background: #b45309; }
+.overview-workflow-step--dispatch .overview-workflow-track i { background: #7c3aed; }
+
+.overview-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+  gap: 16px;
+}
+
+.overview-main-grid--bottom {
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+}
+
+.overview-main-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.overview-product-table,
+.overview-action-list,
+.overview-warehouse-network {
+  display: grid;
+  gap: 10px;
+}
+
+.overview-table-head,
+.overview-product-table article {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 0.55fr) minmax(82px, 0.3fr) minmax(96px, 0.35fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.overview-table-head {
+  padding: 0 14px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.overview-product-table article,
+.overview-action-list article,
+.overview-warehouse-network article {
+  padding: 14px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.overview-product-table strong,
+.overview-action-list strong,
+.overview-warehouse-network strong {
+  display: block;
+  color: #06142f;
+}
+
+.overview-product-table span {
+  color: #344054;
+  font-weight: 850;
+}
+
+.overview-action-list {
+  gap: 12px;
+}
+
+.overview-action-list article,
+.overview-warehouse-network article {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.overview-action-list article > svg,
+.overview-warehouse-network article > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  color: #b45309;
+  background: #fef3c7;
+  font-size: 18px;
+}
+
+.overview-warehouse-network article > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.overview-warehouse-network article > span {
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
+.overview-warehouse-network em {
+  display: block;
+  margin-top: 4px;
+}
+
+.overview-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overview-role-grid article {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.overview-role-grid svg {
+  color: #2563eb;
+  font-size: 20px;
+}
+
+.overview-role-grid span {
+  color: #667085;
+  font-weight: 850;
+}
+
+.overview-role-grid strong {
+  color: #06142f;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.overview-role-grid--wide {
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.overview-status-message {
+  padding: 16px;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  color: #92400e;
+  background: #fffbeb;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.overview-status-message + .overview-role-grid {
+  margin-top: 12px;
+}
+
+.overview-empty {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+@media (max-width: 1180px) {
+  .overview-command-grid,
+  .overview-workflow-grid,
+  .overview-main-grid,
+  .overview-main-grid--bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .overview-command-center,
+  .overview-command-actions,
+  .overview-section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .overview-command-grid,
+  .overview-workflow-grid,
+  .overview-main-grid,
+  .overview-main-grid--bottom,
+  .overview-role-grid,
+  .overview-table-head,
+  .overview-product-table article,
+  .overview-role-grid--wide {
+    grid-template-columns: 1fr;
+  }
+}

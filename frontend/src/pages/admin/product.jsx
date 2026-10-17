@@ -176,6 +176,9 @@ export default function Product(){
                                 </div>
                                 <p>{item?.description || "Chưa có mô tả cho sản phẩm này."}</p>
                                 <div className="product-card-meta">
+                                    <span>Bảo quản: {item.minTemperature ?? '…'} – {item.maxTemperature ?? '…'} °C · {item.minHumidity ?? '…'} – {item.maxHumidity ?? '…'} %</span>
+                                </div>
+                                <div className="product-card-meta">
                                     <span>Trọng lượng</span>
                                     <strong>{item?.unit_weight || 0}</strong>
                                 </div>
@@ -232,6 +235,25 @@ export default function Product(){
                         <Form.Item label="Đơn vị" name="unit" rules={[{required:true,message:"Vui lòng chọn đơn vị"}]}>
                             <Select options={unitOptions} placeholder="Chọn đơn vị" size="large"/>
                         </Form.Item>
+                    </div>
+                    <Typography.Paragraph type="secondary">Ngưỡng bảo quản riêng của sản phẩm. Để trống nếu không cần giám sát thông số đó.</Typography.Paragraph>
+                    <div className="catalog-form-grid">
+                        {[
+                            ['minTemperature', 'Nhiệt độ tối thiểu (°C)', -100, 200],
+                            ['maxTemperature', 'Nhiệt độ tối đa (°C)', -100, 200],
+                            ['minHumidity', 'Độ ẩm tối thiểu (%)', 0, 100],
+                            ['maxHumidity', 'Độ ẩm tối đa (%)', 0, 100],
+                        ].map(([field, label, min, max]) => <Form.Item key={field} name={field} label={label}
+                            dependencies={['minTemperature', 'maxTemperature', 'minHumidity', 'maxHumidity'].filter(other => other !== field)}
+                            rules={[({ getFieldValue }) => ({ validator(_, value) {
+                                const low = getFieldValue(field.includes('Temperature') ? 'minTemperature' : 'minHumidity');
+                                const high = getFieldValue(field.includes('Temperature') ? 'maxTemperature' : 'maxHumidity');
+                                if (value != null && (value < min || value > max)) return Promise.reject(new Error(`Giá trị phải từ ${min} đến ${max}`));
+                                return low != null && high != null && low > high
+                                    ? Promise.reject(new Error('Ngưỡng tối thiểu phải nhỏ hơn hoặc bằng tối đa')) : Promise.resolve();
+                            } })]}>
+                            <InputNumber min={min} max={max} precision={2} style={{ width: '100%' }} placeholder="Chưa cấu hình" />
+                        </Form.Item>)}
                     </div>
                     <Form.Item label="Mô tả" name="description">
                         <Input.TextArea autoSize={{ minRows: 3, maxRows: 5 }} placeholder="Ghi chú thêm về sản phẩm"/>

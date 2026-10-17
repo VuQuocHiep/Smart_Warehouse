@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  BellOutlined,
   BoxPlotOutlined,
   DashboardOutlined,
   DownOutlined,
@@ -16,8 +15,10 @@ import {
   RadarChartOutlined,
   SearchOutlined,
   UserOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
-import { Avatar, Badge, Button, Input, Layout, Menu, Popover, Space, Typography } from 'antd'
+import { Avatar, Button, Input, Layout, Menu, Popover, Space, Typography } from 'antd'
+import ProductNotifications from '../../components/ProductNotifications'
 
 import { clearUser } from '../../redux/userSlice.js'
 import { clearAuth } from '../../utils/auth.js'
@@ -61,6 +62,11 @@ const menuItems = [
     key: '/staff/history',
     icon: <HistoryOutlined />,
     label: <Link to="/staff/history">Lịch sử công việc</Link>,
+  },
+  {
+    key: '/staff/alert',
+    icon: <WarningOutlined />,
+    label: <Link to="/staff/alert">Cảnh báo</Link>,
   },
 ]
 
@@ -175,9 +181,7 @@ export default function Staff() {
           />
 
           <Space align="center" className="staff-account-area" size={24}>
-            <Badge count={3} offset={[-3, 5]} size="small">
-              <Button className="staff-icon-button" icon={<BellOutlined />} shape="circle" type="text" />
-            </Badge>
+            <ProductNotifications className="staff-icon-button" />
 
             <Popover arrow={false} content={accountContent} placement="bottomRight" trigger="click">
               <button className="staff-account-trigger" type="button">

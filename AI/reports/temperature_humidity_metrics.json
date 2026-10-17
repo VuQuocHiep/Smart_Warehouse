@@ -1,0 +1,251 @@
+{
+  "features": [
+    "temperature",
+    "humidity"
+  ],
+  "target": "Four-class pseudo-labels predicted by existing smoke_risk_model.joblib",
+  "label_source": "MODEL_GENERATED_NOT_MEASURED_SEVERITY",
+  "teacher_sha256": "e41dac8e6addf60810989d22cb1f8c4af01cc2bb6c2b608d9eb7f3e3c04c3117",
+  "ai_level_policy": "student model predicts 0/1/2/3; final level is max(student level, gas threshold level)",
+  "source_sha256": "7bbf5deaab4c94746b344cee7bfec493f69b7d624ea63f35fabcd3c4a4e6eb7d",
+  "split": "chronological recording sessions separated by UTC gaps >60 seconds",
+  "limitations": "Teacher-generated labels, not independently verified severity. Teacher was trained on this dataset. Heldout scores measure imitation agreement, not real-world hazard accuracy. Student has no gas input.",
+  "partitions": {
+    "train": {
+      "rows": 30738,
+      "sessions": [
+        0,
+        1
+      ],
+      "teacher_agreement_balanced_accuracy": 0.9542968520487926,
+      "target_counts": {
+        "0": 24042,
+        "2": 5596,
+        "3": 994,
+        "1": 106
+      },
+      "confusion_matrix": [
+        [
+          21875,
+          0,
+          2167,
+          0
+        ],
+        [
+          0,
+          106,
+          0,
+          0
+        ],
+        [
+          496,
+          1,
+          5083,
+          16
+        ],
+        [
+          0,
+          0,
+          1,
+          993
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.9778284386035493,
+          "recall": 0.9098660677148324,
+          "f1-score": 0.942623833839657,
+          "support": 24042.0
+        },
+        "1": {
+          "precision": 0.9906542056074766,
+          "recall": 1.0,
+          "f1-score": 0.9953051643192489,
+          "support": 106.0
+        },
+        "2": {
+          "precision": 0.7010067576885947,
+          "recall": 0.9083273766976412,
+          "f1-score": 0.7913131470382191,
+          "support": 5596.0
+        },
+        "3": {
+          "precision": 0.9841427155599604,
+          "recall": 0.9989939637826962,
+          "f1-score": 0.9915127309036446,
+          "support": 994.0
+        },
+        "accuracy": 0.9127789706552151,
+        "macro avg": {
+          "precision": 0.9134080293648953,
+          "recall": 0.9542968520487926,
+          "f1-score": 0.9301887190251923,
+          "support": 30738.0
+        },
+        "weighted avg": {
+          "precision": 0.9276801464634297,
+          "recall": 0.9127789706552151,
+          "f1-score": 0.9168396312686242,
+          "support": 30738.0
+        }
+      }
+    },
+    "validation": {
+      "rows": 24994,
+      "sessions": [
+        2
+      ],
+      "teacher_agreement_balanced_accuracy": 0.45720898263745674,
+      "target_counts": {
+        "0": 21157,
+        "2": 3837
+      },
+      "confusion_matrix": [
+        [
+          10116,
+          0,
+          11041,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          2163,
+          0,
+          1674,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.8238455900317615,
+          "recall": 0.4781396228198705,
+          "f1-score": 0.6050963033855724,
+          "support": 21157.0
+        },
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 0.0
+        },
+        "2": {
+          "precision": 0.13165552497050728,
+          "recall": 0.436278342455043,
+          "f1-score": 0.20227162880618657,
+          "support": 3837.0
+        },
+        "3": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 0.0
+        },
+        "accuracy": 0.471713211170681,
+        "macro avg": {
+          "precision": 0.2388752787505672,
+          "recall": 0.22860449131872837,
+          "f1-score": 0.20184198304793974,
+          "support": 24994.0
+        },
+        "weighted avg": {
+          "precision": 0.7175827557659364,
+          "recall": 0.471713211170681,
+          "f1-score": 0.5432559306416698,
+          "support": 24994.0
+        }
+      }
+    },
+    "test": {
+      "rows": 6898,
+      "sessions": [
+        3,
+        4
+      ],
+      "teacher_agreement_balanced_accuracy": 0.369444463957066,
+      "target_counts": {
+        "0": 3792,
+        "2": 1802,
+        "3": 1230,
+        "1": 74
+      },
+      "confusion_matrix": [
+        [
+          3108,
+          0,
+          684,
+          0
+        ],
+        [
+          0,
+          0,
+          74,
+          0
+        ],
+        [
+          609,
+          7,
+          1186,
+          0
+        ],
+        [
+          81,
+          0,
+          1149,
+          0
+        ]
+      ],
+      "classification_report": {
+        "0": {
+          "precision": 0.8183254344391785,
+          "recall": 0.819620253164557,
+          "f1-score": 0.8189723320158103,
+          "support": 3792.0
+        },
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 74.0
+        },
+        "2": {
+          "precision": 0.3834464920788878,
+          "recall": 0.658157602663707,
+          "f1-score": 0.4845760980592441,
+          "support": 1802.0
+        },
+        "3": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 1230.0
+        },
+        "accuracy": 0.622499275152218,
+        "macro avg": {
+          "precision": 0.30044298162951655,
+          "recall": 0.369444463957066,
+          "f1-score": 0.3258871075187636,
+          "support": 6898.0
+        },
+        "weighted avg": {
+          "precision": 0.5500232858972921,
+          "recall": 0.622499275152218,
+          "f1-score": 0.5767975082207466,
+          "support": 6898.0
+        }
+      }
+    }
+  },
+  "model_sha256": "31f9159d3eac1f014ef1773cd1eb24eaeefe836fd75532ded9777c0eace9b873",
+  "parity_samples": 325
+}

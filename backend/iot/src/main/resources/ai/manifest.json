@@ -1,0 +1,17 @@
+{
+  "sha256": "e41dac8e6addf60810989d22cb1f8c4af01cc2bb6c2b608d9eb7f3e3c04c3117",
+  "trees": 300,
+  "features": [
+    "temperature",
+    "humidity",
+    "gas"
+  ],
+  "gas_unit": "TVOC[ppb]",
+  "parity_samples": 165,
+  "classes_tested": [
+    0,
+    1,
+    2,
+    3
+  ]
+}
