@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.example.iot.entity.WarehouseEntity;
 
 public interface WarehouseRepository extends JpaRepository<WarehouseEntity,String>{
+    Optional<WarehouseEntity> findByMonitoringDeviceCodeAndDeletedFalse(String deviceCode);
+    List<WarehouseEntity> findByMonitoringSlotIsNotNullAndDeletedFalseOrderByMonitoringSlotAsc();
     boolean existsByNameAndDeletedFalse(String name);
     boolean existsByWarehouseIdAndDeletedFalse(String id);
     Optional<WarehouseEntity> findByWarehouseIdAndDeletedFalse(String id);

@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.example.iot.entity.PermissionEntity;
 import com.example.iot.entity.RoleEntity;
 import com.example.iot.entity.UserEntity;
 import com.example.iot.enums.Role;
@@ -21,14 +20,19 @@ public class ApplicationInitConfig {
     @Bean
     ApplicationRunner applicationRunner(UserRepository userRepository,RoleRepository roleRepository) {
         return args -> {
-            RoleEntity adminRole = roleRepository.findByNameAndDeletedFalse(Role.ADMIN.name()).orElseGet(() -> {
+            for (Role appRole : Role.values()) {
+                roleRepository.findByNameAndDeletedFalse(appRole.name()).orElseGet(() -> {
                         RoleEntity role = RoleEntity.builder()
-                                .name(Role.ADMIN.name())
-                                .description("admin")
+                                .name(appRole.name())
+                                .description(appRole.name().toLowerCase())
                                 .permission(new HashSet<>())
                                 .build();
                         return roleRepository.save(role);
                     });
+            }
+
+            RoleEntity adminRole = roleRepository.findByNameAndDeletedFalse(Role.ADMIN.name())
+                    .orElseThrow(() -> new RuntimeException("Không tạo được role ADMIN"));
 
             if (!userRepository.existsByEmailAndDeletedFalse("ADMINPTIT@gmail.com")) {
                 Set<RoleEntity> x = new HashSet<>();

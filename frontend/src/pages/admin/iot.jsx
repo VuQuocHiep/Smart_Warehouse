@@ -1,3 +1,5 @@
-export default function Iot(){
-    
+import IotDashboard from '../../components/IotDashboard.jsx'
+
+export default function Iot() {
+  return <IotDashboard />
 }

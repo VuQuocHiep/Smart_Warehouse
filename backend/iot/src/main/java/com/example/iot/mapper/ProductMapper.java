@@ -31,10 +31,18 @@ public class ProductMapper {
                                         .unit(getUnit(request.getUnit()))
                                         .deleted(false)
                                         .build();
+        productEntity.setMinTemperature(request.getMinTemperature());
+        productEntity.setMaxTemperature(request.getMaxTemperature());
+        productEntity.setMinHumidity(request.getMinHumidity());
+        productEntity.setMaxHumidity(request.getMaxHumidity());
         return productEntity;
     }
     public void updateEntity(ProductRequest request,ProductEntity productEntity){
         productEntity.setSku(request.getSku());
+        productEntity.setMinTemperature(request.getMinTemperature());
+        productEntity.setMaxTemperature(request.getMaxTemperature());
+        productEntity.setMinHumidity(request.getMinHumidity());
+        productEntity.setMaxHumidity(request.getMaxHumidity());
         productEntity.setName(request.getName());
         productEntity.setCategory(request.getCategory());
         productEntity.setDescription(request.getDescription());

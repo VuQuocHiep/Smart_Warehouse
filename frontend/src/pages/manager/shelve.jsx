@@ -1,3 +1,1 @@
-export default function ShelveManager(){
-    
-}
+export { default } from '../../components/ShelfDashboard'

@@ -1,6 +1,8 @@
 package com.example.iot.service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.iot.dto.request.UserRequest;
 import com.example.iot.entity.UserEntity;
+import com.example.iot.enums.Role;
 import com.example.iot.mapper.UserMapper;
 import com.example.iot.repository.UserRepository;
 
@@ -49,6 +52,17 @@ public class UserService {
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserEntity> getAll(){
         return userRepository.findByDeletedFalse();
+    }
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    public Map<String, Long> getRoleStats(){
+        Map<String, Long> stats = new LinkedHashMap<>();
+        for (Role role : Role.values()) {
+            long count = userRepository.countDistinctByDeletedFalseAndRole_Name(role.name());
+            stats.put(role.name(), count);
+        }
+
+        stats.put("TOTAL", userRepository.countByDeletedFalse());
+        return stats;
     }
     public UserEntity getUserById(String id){
         return userRepository.findByUserIdAndDeletedFalse(id).orElseThrow(()->new RuntimeException("Không tồn tại!"));

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  BellOutlined,
   BoxPlotOutlined,
   DashboardOutlined,
   DownOutlined,
@@ -21,7 +20,8 @@ import {
   WifiOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { Avatar, Badge, Button, Input, Layout, Menu, Popover, Space, Typography } from 'antd'
+import { Avatar, Button, Input, Layout, Menu, Popover, Space, Typography } from 'antd'
+import ProductNotifications from '../../components/ProductNotifications'
 
 import { clearUser } from '../../redux/userSlice.js'
 import { clearAuth } from '../../utils/auth.js'
@@ -195,9 +195,7 @@ export default function Manager() {
           />
 
           <Space align="center" className="manager-account-area" size={24}>
-            <Badge count={5} offset={[-3, 5]} size="small">
-              <Button className="manager-icon-button" icon={<BellOutlined />} shape="circle" type="text" />
-            </Badge>
+            <ProductNotifications className="manager-icon-button" />
 
             <Popover arrow={false} content={accountContent} placement="bottomRight" trigger="click">
               <button className="manager-account-trigger" type="button">

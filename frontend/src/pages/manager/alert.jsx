@@ -1,3 +1,1 @@
-export default function AlertManager(){
-    
-}
+export { default } from '../admin/alert.jsx'

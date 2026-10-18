@@ -1,6 +1,7 @@
 package com.example.iot.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 
@@ -40,6 +41,10 @@ public class UserController {
     @GetMapping("/getAll")
     public ResponseEntity<List<UserEntity>> getAll(){
         return ResponseEntity.ok(userService.getAll());
+    }
+    @GetMapping("/roleStats")
+    public ResponseEntity<Map<String, Long>> getRoleStats(){
+        return ResponseEntity.ok(userService.getRoleStats());
     }
     @GetMapping("/getUserById/{id}")
     public ResponseEntity<UserEntity> getUserById(@PathVariable String id){

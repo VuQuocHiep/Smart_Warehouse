@@ -32,6 +32,10 @@ public class WarehouseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     String warehouseId;
     String name;
+    @Column(unique = true)
+    Integer monitoringSlot;
+    @Column(unique = true)
+    String monitoringDeviceCode;
     String address;
     @Lob
     @Column(columnDefinition = "TEXT")

@@ -38,6 +38,10 @@ public class ProductEntity {
     String sku;
     String name;
     String category;
+    Double minTemperature;
+    Double maxTemperature;
+    Double minHumidity;
+    Double maxHumidity;
     @Lob
     @Column(columnDefinition = "TEXT")
     String description;
