@@ -1,7 +1,10 @@
 package com.example.iot.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -10,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.iot.dto.request.StockRequest;
+import com.example.iot.dto.response.StockHistoryItem;
 import com.example.iot.dto.response.StockItemResult;
 import com.example.iot.entity.InventoryEntity;
 import com.example.iot.entity.ProductEntity;
@@ -40,11 +44,42 @@ public class InventoryService {
         return apply(request, StockType.OUT);
     }
 
+    /** Tồn kho của MỌI sản phẩm đang hoạt động (chưa từng nhập thì tồn = 0), sắp xếp theo SKU. */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Transactional(readOnly = true)
     public List<StockItemResult> getAllStock() {
-        return inventoryRepository.findAll().stream()
-                .map(i -> new StockItemResult(i.getProduct().getSku(), i.getProduct().getName(), 0, i.getQuantity()))
+        Map<String, Integer> stockByProduct = new HashMap<>();
+        for (InventoryEntity i : inventoryRepository.findAll()) {
+            stockByProduct.put(i.getProduct().getProductId(), i.getQuantity());
+        }
+        return productRepository.findByDeletedFalse().stream()
+                .map(p -> new StockItemResult(p.getSku(), p.getName(), 0,
+                        stockByProduct.getOrDefault(p.getProductId(), 0)))
+                .sorted(Comparator.comparing(StockItemResult::sku))
                 .toList();
+    }
+
+    /** 200 giao dịch nhập/xuất gần nhất, mới nhất trước. */
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Transactional(readOnly = true)
+    public List<StockHistoryItem> getHistory() {
+        return transactionRepository.findTop200ByOrderByCreatedAtDesc().stream()
+                .map(t -> new StockHistoryItem(
+                        t.getProduct().getSku(),
+                        t.getProduct().getName(),
+                        t.getType().name(),
+                        t.getQuantity(),
+                        t.getStockAfter(),
+                        t.getCreatedBy(),
+                        t.getCreatedAt()))
+                .toList();
+    }
+
+    /** Danh sách SKU đã từng có giao dịch (dùng để khóa không cho đổi SKU). */
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Transactional(readOnly = true)
+    public List<String> getUsedSkus() {
+        return transactionRepository.findUsedSkus();
     }
 
     /**
