@@ -59,11 +59,19 @@ public class InventoryService {
                 .toList();
     }
 
-    /** 200 giao dịch nhập/xuất gần nhất, mới nhất trước. */
+        /** 200 giao dịch gần nhất: admin/manager xem toàn bộ, vai trò khác (staff) chỉ xem phần do mình thực hiện. */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Transactional(readOnly = true)
     public List<StockHistoryItem> getHistory() {
-        return transactionRepository.findTop200ByOrderByCreatedAtDesc().stream()
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean seeAll = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().endsWith("ADMIN") || a.getAuthority().endsWith("MANAGER"));
+
+        List<StockTransactionEntity> list = seeAll
+                ? transactionRepository.findTop200ByOrderByCreatedAtDesc()
+                : transactionRepository.findTop200ByCreatedByOrderByCreatedAtDesc(auth != null ? auth.getName() : "");
+
+        return list.stream()
                 .map(t -> new StockHistoryItem(
                         t.getProduct().getSku(),
                         t.getProduct().getName(),

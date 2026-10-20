@@ -14,6 +14,8 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
 
     List<StockTransactionEntity> findTop200ByOrderByCreatedAtDesc();
 
+    List<StockTransactionEntity> findTop200ByCreatedByOrderByCreatedAtDesc(String createdBy);
+
     /** Các SKU đã từng có giao dịch nhập/xuất. */
     @Query("select distinct t.product.sku from StockTransactionEntity t")
     List<String> findUsedSkus();
