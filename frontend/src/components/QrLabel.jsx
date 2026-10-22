@@ -1,29 +1,53 @@
-import { useRef, useState } from "react";
-import { Button, Modal, QRCode, Typography } from "antd";
-import { PrinterOutlined, QrcodeOutlined } from "@ant-design/icons";
+import { useCallback, useRef, useState } from "react";
+import { Button, Modal, Typography } from "antd";
+import { PrinterOutlined, BarcodeOutlined } from "@ant-design/icons";
+import JsBarcode from "jsbarcode";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/**
- * Nút "Mã QR" cho một sản phẩm: mở cửa sổ xem mã QR của SKU và in tem.
- * Dùng: <QrLabel sku={record.sku} name={record.name} />
- */
 export default function QrLabel({ sku, name }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
 
+  // Vẽ mã vạch Code128 vào thẻ <svg> ngay khi thẻ xuất hiện
+  const drawBarcode = useCallback(
+    (el) => {
+      if (!el || !sku) return;
+      try {
+        JsBarcode(el, String(sku), { format: "CODE128", displayValue: false, margin: 0, width: 2, height: 70 });
+      } catch (e) {
+        /* SKU có ký tự không mã hóa được (chỉ hỗ trợ chữ không dấu, số) */
+      }
+    },
+    [sku]
+  );
+
   const print = () => {
-    const canvas = boxRef.current?.querySelector("canvas");
-    if (!canvas) return;
-    const src = canvas.toDataURL("image/png");
-    const w = window.open("", "_blank", "width=420,height=520");
+    const svg = boxRef.current?.querySelector("svg");
+    if (!svg) return;
+    const clone = svg.cloneNode(true);
+    clone.removeAttribute("width");
+    clone.removeAttribute("height");
+    clone.setAttribute("preserveAspectRatio", "none");
+
+    const w = window.open("", "_blank", "width=480,height=360");
     if (!w) return;
     w.document.write(
-      `<html><head><title>${esc(sku)}</title></head>` +
-        `<body style="font-family:monospace;text-align:center;margin:20px">` +
-        `<img src="${src}" style="width:3.5cm;height:3.5cm"/>` +
-        `<div style="font-weight:bold;font-size:14px">${esc(sku)}</div>` +
-        `<div style="font-size:11px">${esc(name)}</div></body></html>`
+      `<html><head><title>${esc(sku)}</title><style>` +
+        `@page{size:35mm 22mm;margin:0}` +
+        `html,body{margin:0;padding:0}` +
+        `body{width:35mm;height:22mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Arial,sans-serif;overflow:hidden}` +
+        `.head{font-size:5pt;line-height:1.1}` +
+        `.bar{width:31mm;height:9mm;margin:0.6mm 0}` +
+        `.bar svg{width:100%;height:100%;display:block}` +
+        `.sku{font:bold 9pt Arial,sans-serif;line-height:1}` +
+        `.name{font-size:5pt;max-width:33mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1}` +
+        `</style></head><body>` +
+        `<div class="head">MÃ SẢN PHẨM</div>` +
+        `<div class="bar">${clone.outerHTML}</div>` +
+        `<div class="sku">${esc(sku)}</div>` +
+        `<div class="name">${esc(name)}</div>` +
+        `</body></html>`
     );
     w.document.close();
     w.focus();
@@ -32,11 +56,11 @@ export default function QrLabel({ sku, name }) {
 
   return (
     <>
-      <Button size="small" icon={<QrcodeOutlined />} onClick={() => setOpen(true)} disabled={!sku}>
-        Mã QR
+      <Button size="small" icon={<BarcodeOutlined />} onClick={() => setOpen(true)} disabled={!sku}>
+        Tem
       </Button>
       <Modal
-        title={`Mã QR: ${sku}`}
+        title={`Tem sản phẩm: ${sku}`}
         open={open}
         onCancel={() => setOpen(false)}
         footer={[
@@ -44,13 +68,16 @@ export default function QrLabel({ sku, name }) {
             Đóng
           </Button>,
           <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={print}>
-            In tem
+            In tem 35x22
           </Button>,
         ]}
       >
-        <div ref={boxRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <QRCode value={String(sku || "")} size={200} errorLevel="M" bgColor="#ffffff" />
-          <Typography.Text strong>{sku}</Typography.Text>
+        <div ref={boxRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <Typography.Text>MÃ SẢN PHẨM</Typography.Text>
+          <svg ref={drawBarcode} preserveAspectRatio="none" style={{ width: 320, height: 90 }} />
+          <Typography.Text strong style={{ fontSize: 20 }}>
+            {sku}
+          </Typography.Text>
           <Typography.Text type="secondary">{name}</Typography.Text>
         </div>
       </Modal>
