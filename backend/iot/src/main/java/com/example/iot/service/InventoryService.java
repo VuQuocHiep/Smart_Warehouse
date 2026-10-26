@@ -16,21 +16,32 @@ import com.example.iot.dto.request.StockRequest;
 import com.example.iot.dto.response.StockHistoryItem;
 import com.example.iot.dto.response.StockItemResult;
 import com.example.iot.entity.InventoryEntity;
+import com.example.iot.entity.MonitoredShelf;
 import com.example.iot.entity.ProductEntity;
+import com.example.iot.entity.ShelfStockEntity;
 import com.example.iot.entity.StockTransactionEntity;
 import com.example.iot.entity.StockTransactionEntity.StockType;
+import com.example.iot.entity.WarehouseEntity;
 import com.example.iot.repository.InventoryRepository;
+import com.example.iot.repository.MonitoredShelfRepository;
 import com.example.iot.repository.ProductRepository;
+import com.example.iot.repository.ShelfStockRepository;
 import com.example.iot.repository.StockTransactionRepository;
+import com.example.iot.repository.WarehouseRepository;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class InventoryService {
+    private static final int DEFAULT_CAPACITY = 100;
+
     private final InventoryRepository inventoryRepository;
     private final StockTransactionRepository transactionRepository;
     private final ProductRepository productRepository;
+    private final MonitoredShelfRepository shelves;
+    private final ShelfStockRepository shelfStocks;
+    private final WarehouseRepository warehouses;
 
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Transactional
@@ -59,7 +70,7 @@ public class InventoryService {
                 .toList();
     }
 
-        /** 200 giao dịch gần nhất: admin/manager xem toàn bộ, vai trò khác (staff) chỉ xem phần do mình thực hiện. */
+    /** 200 giao dịch gần nhất: admin/manager xem toàn bộ, vai trò khác (staff) chỉ xem phần do mình thực hiện. */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Transactional(readOnly = true)
     public List<StockHistoryItem> getHistory() {
@@ -79,7 +90,8 @@ public class InventoryService {
                         t.getQuantity(),
                         t.getStockAfter(),
                         t.getCreatedBy(),
-                        t.getCreatedAt()))
+                        t.getCreatedAt(),
+                        t.getNote()))
                 .toList();
     }
 
@@ -91,7 +103,7 @@ public class InventoryService {
     }
 
     /**
-     * Xử lý cả phiếu trong một transaction: nếu một dòng lỗi (SKU không có, xuất quá tồn)
+     * Xử lý cả phiếu trong một transaction: nếu một dòng lỗi (SKU không có, xuất quá tồn, kệ hết chỗ)
      * thì toàn bộ phiếu bị hủy, không dòng nào được lưu.
      */
     private List<StockItemResult> apply(StockRequest request, StockType type) {
@@ -112,6 +124,10 @@ public class InventoryService {
                         + " (hiện có " + inventory.getQuantity() + ", cần xuất " + qty + ")");
             }
 
+            String note = type == StockType.IN
+                    ? placeOnShelf(product, qty, item.getShelfId())
+                    : takeFromShelves(product, qty);
+
             inventory.setQuantity(newStock);
             inventoryRepository.save(inventory);
 
@@ -121,12 +137,70 @@ public class InventoryService {
                     .quantity(qty)
                     .stockAfter(newStock)
                     .createdBy(user)
-                    .note("Quét camera")
+                    .note(note)
                     .build());
 
             results.add(new StockItemResult(product.getSku(), product.getName(), qty, newStock));
         }
         return results;
+    }
+
+    /** Nhập kho: xếp hàng vào kệ đã chọn (kiểm tra sức chứa), trả về ghi chú vị trí. */
+    private String placeOnShelf(ProductEntity product, int qty, String shelfId) {
+        if (shelfId == null || shelfId.isBlank()) {
+            return "Nhập kho, chưa chỉ định kệ";
+        }
+        MonitoredShelf shelf = shelves.findById(shelfId)
+                .orElseThrow(() -> new RuntimeException("Kệ không tồn tại"));
+        int capacity = shelf.getCapacity() == null ? DEFAULT_CAPACITY : shelf.getCapacity();
+        long used = shelfStocks.sumQuantity(shelfId);
+        if (used + qty > capacity) {
+            throw new RuntimeException("Kệ " + shelf.getName() + " không đủ sức chứa (còn trống "
+                    + Math.max(0L, capacity - used) + ", cần " + qty + ")");
+        }
+        ShelfStockEntity row = shelfStocks.findByShelfIdAndProductId(shelfId, product.getProductId())
+                .orElseGet(() -> ShelfStockEntity.builder()
+                        .shelfId(shelfId).productId(product.getProductId()).quantity(0).build());
+        row.setQuantity(row.getQuantity() + qty);
+        shelfStocks.save(row);
+        return limit("Xếp vào " + shelfLabel(shelf));
+    }
+
+    /** Xuất kho: trừ lần lượt từ các kệ đang chứa nhiều hàng này nhất, trả về ghi chú nơi lấy. */
+    private String takeFromShelves(ProductEntity product, int qty) {
+        int remaining = qty;
+        List<String> parts = new ArrayList<>();
+        for (ShelfStockEntity row : shelfStocks.findByProductIdOrderByQuantityDesc(product.getProductId())) {
+            if (remaining <= 0) {
+                break;
+            }
+            int take = Math.min(remaining, row.getQuantity());
+            if (take <= 0) {
+                continue;
+            }
+            row.setQuantity(row.getQuantity() - take);
+            shelfStocks.save(row);
+            remaining -= take;
+            parts.add(shelves.findById(row.getShelfId()).map(MonitoredShelf::getName).orElse("?") + " (-" + take + ")");
+        }
+        if (parts.isEmpty()) {
+            return "Xuất kho";
+        }
+        String note = "Lấy từ " + String.join(", ", parts);
+        if (remaining > 0) {
+            note += "; " + remaining + " chưa xếp kệ";
+        }
+        return limit(note);
+    }
+
+    private String shelfLabel(MonitoredShelf shelf) {
+        String warehouseName = shelf.getWarehouseId() == null ? "" : warehouses.findById(shelf.getWarehouseId())
+                .map(WarehouseEntity::getName).orElse("");
+        return warehouseName.isBlank() ? shelf.getName() : shelf.getName() + " · " + warehouseName;
+    }
+
+    private static String limit(String text) {
+        return text.length() > 255 ? text.substring(0, 255) : text;
     }
 
     private String currentUser() {

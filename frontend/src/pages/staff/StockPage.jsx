@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Alert, Button, Card, Input, InputNumber, Table, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Input, InputNumber, Select, Table, Tag, Typography, message } from "antd";
 import { DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import ScannerCamera from "../../components/ScannerCamera";
 import ProductQuickCreate from "../../components/ProductQuickCreate";
@@ -35,7 +35,8 @@ const stockStatus = (stock) => {
  * Trang nhập/xuất kho dùng chung.
  * type = "IN": nhập kho (+), type = "OUT": xuất kho (-)
  * Quy trình: quét SKU -> thêm vào phiếu (quét lại thì +1) -> chỉnh số lượng -> Xác nhận.
- * Quét mã chưa có trong mục Sản phẩm: admin/manager được tạo sản phẩm mới ngay, staff chỉ nhận thông báo.
+ * Nhập kho: AI đề xuất kệ phù hợp cho từng dòng (môi trường, sức chứa, tần suất xuất), có thể đổi kệ.
+ * Quét mã chưa có trong mục Sản phẩm: admin/manager được tạo sản phẩm mới khi nhập kho, staff chỉ nhận thông báo.
  */
 export default function StockPage({ type }) {
   const isIn = type === "IN";
@@ -53,6 +54,10 @@ export default function StockPage({ type }) {
   const [createSku, setCreateSku] = useState(null); // mã chưa có sản phẩm, đang chờ tạo
   const createSkuRef = useRef(null);
   createSkuRef.current = createSku;
+
+  const [placements, setPlacements] = useState({}); // sku -> danh sách kệ đề xuất
+  const [shelfChoice, setShelfChoice] = useState({}); // sku -> kệ do người dùng chọn
+  const [suggesting, setSuggesting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -75,10 +80,45 @@ export default function StockPage({ type }) {
     loadData();
   }, [loadData]);
 
+  // Mỗi khi phiếu nhập thay đổi (thêm hàng, đổi số lượng), xin AI đề xuất lại vị trí xếp hàng
+  const itemsKey = JSON.stringify(items.map((x) => [x.sku, x.quantity]));
+  useEffect(() => {
+    if (!isIn || items.length === 0) {
+      setPlacements({});
+      return undefined;
+    }
+    const timer = setTimeout(async () => {
+      setSuggesting(true);
+      try {
+        const res = unwrap(
+          await inventoryApi.getPlacements({ items: items.map(({ sku, quantity }) => ({ sku, quantity })) })
+        );
+        const map = {};
+        (Array.isArray(res) ? res : []).forEach((r) => {
+          map[r.sku] = r.options || [];
+        });
+        setPlacements(map);
+      } catch (err) {
+        setPlacements({});
+      }
+      setSuggesting(false);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey, isIn]);
+
+  // Kệ đang được chọn cho một SKU: ưu tiên lựa chọn của người dùng (nếu còn phù hợp), không thì kệ AI đề xuất
+  const chosenShelf = (sku) => {
+    const options = placements[sku] || [];
+    const picked = options.find((o) => o.shelfId === shelfChoice[sku] && o.eligible);
+    if (picked) return picked.shelfId;
+    return options.find((o) => o.recommended)?.shelfId;
+  };
+
   // Tra nhanh tồn kho theo SKU (sản phẩm chưa từng nhập thì tồn = 0)
   const stockOf = (sku) => stockList.find((s) => s.sku === sku)?.stock ?? 0;
 
-  // Tra SKU rồi thêm vào phiếu; nếu chưa có sản phẩm thì (admin/manager) mở hộp tạo mới
+  // Tra SKU rồi thêm vào phiếu; nếu chưa có sản phẩm thì (admin/manager, nhập kho) mở hộp tạo mới
   const lookupAndAdd = async (sku) => {
     try {
       const res = await productApi.getProductBySku(sku);
@@ -96,7 +136,7 @@ export default function StockPage({ type }) {
         return [...prev, { sku: key, name: product.name || key, quantity: 1 }];
       });
       setStatus({ type: "success", message: `Đã thêm: ${product.name || key} (${key})` });
-        } catch (err) {
+    } catch (err) {
       if (!isIn) {
         setStatus({ type: "error", message: `Mã ${sku} chưa có trong mục Sản phẩm nên không thể xuất kho.` });
       } else if (canCreateProduct) {
@@ -105,7 +145,7 @@ export default function StockPage({ type }) {
       } else {
         setStatus({
           type: "error",
-          message: `Mã ${sku} chưa có trong mục Sản phẩm. Hãy nhờ quản lý tạo sản phẩm này trước.`,
+          message: `Mã ${sku} chưa có trong mục Sản phẩm (hoặc lỗi kết nối). Hãy nhờ quản lý tạo sản phẩm này trước.`,
         });
       }
     }
@@ -136,9 +176,12 @@ export default function StockPage({ type }) {
     if (!items.length || overStock) return;
     setSaving(true);
     try {
-      await inventoryApi.stock(type, { items: items.map(({ sku, quantity }) => ({ sku, quantity })) });
+      await inventoryApi.stock(type, {
+        items: items.map(({ sku, quantity }) => ({ sku, quantity, shelfId: isIn ? chosenShelf(sku) : undefined })),
+      });
       message.success(`${title} thành công (${items.length} sản phẩm)`);
       setItems([]);
+      setShelfChoice({});
       setStatus({ type: "success", message: `${title} thành công` });
       await loadData();
     } catch (err) {
@@ -150,6 +193,48 @@ export default function StockPage({ type }) {
   };
 
   const totalQty = items.reduce((s, x) => s + x.quantity, 0);
+
+  // Cột "Vị trí đề xuất" chỉ có ở trang Nhập kho
+  const placementColumn = {
+    title: "Vị trí đề xuất (AI)",
+    width: 360,
+    render: (_, row) => {
+      const options = placements[row.sku] || [];
+      if (!options.length) {
+        return <Text type="secondary">{suggesting ? "Đang phân tích..." : "Chưa có kệ nào"}</Text>;
+      }
+      const selectedId = chosenShelf(row.sku);
+      const selected = options.find((o) => o.shelfId === selectedId);
+      const top = options[0];
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <Select
+            size="small"
+            style={{ width: "100%" }}
+            value={selectedId}
+            placeholder="Không có kệ phù hợp"
+            onChange={(v) => setShelfChoice((prev) => ({ ...prev, [row.sku]: v }))}
+            options={options.map((o) => ({
+              value: o.shelfId,
+              disabled: !o.eligible,
+              label: `${o.recommended ? "★ " : ""}${o.shelfName} · ${o.warehouseName} · ${o.score} điểm${
+                o.eligible ? "" : " (không phù hợp)"
+              }`,
+            }))}
+          />
+          {selected ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {selected.reasons.slice(0, 3).join(" · ")}
+            </Text>
+          ) : (
+            <Text type="danger" style={{ fontSize: 12 }}>
+              {top?.reasons?.[0] || "Không có kệ phù hợp"}
+            </Text>
+          )}
+        </div>
+      );
+    },
+  };
 
   const itemColumns = [
     { title: "SKU", dataIndex: "sku", width: 100 },
@@ -169,6 +254,7 @@ export default function StockPage({ type }) {
         return after < 0 ? <Text type="danger">Vượt tồn kho</Text> : <Text strong>{after}</Text>;
       },
     },
+    ...(isIn ? [placementColumn] : []),
     {
       title: "",
       width: 60,
@@ -200,6 +286,7 @@ export default function StockPage({ type }) {
       render: (q, row) => (row.type === "IN" ? <Text type="success">+{q}</Text> : <Text type="warning">-{q}</Text>),
     },
     { title: "Tồn sau", dataIndex: "stockAfter", width: 90 },
+    { title: "Vị trí / ghi chú", dataIndex: "note", ellipsis: true },
     { title: "Người thực hiện", dataIndex: "createdBy" },
   ];
 
@@ -242,7 +329,13 @@ export default function StockPage({ type }) {
             {items.length} sản phẩm, tổng số lượng: {totalQty}
           </Text>
           <div style={{ display: "flex", gap: 8 }}>
-            <Button onClick={() => setItems([])} disabled={!items.length}>
+            <Button
+              onClick={() => {
+                setItems([]);
+                setShelfChoice({});
+              }}
+              disabled={!items.length}
+            >
               Xóa phiếu
             </Button>
             <Button type="primary" onClick={confirm} loading={saving} disabled={!items.length || overStock}>
@@ -273,7 +366,7 @@ export default function StockPage({ type }) {
         </Text>
       </Card>
 
-      <Card title={pathname.startsWith("/staff") ? "Lịch sử nhập / xuất" : "Lịch sử nhập / xuất"}>
+      <Card title={pathname.startsWith("/staff") ? "Lịch sử nhập / xuất của bạn" : "Lịch sử nhập / xuất"}>
         <Table
           rowKey={(row, i) => `${row.createdAt}-${row.sku}-${i}`}
           columns={historyColumns}

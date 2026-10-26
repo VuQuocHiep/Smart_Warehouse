@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Body: { "items": [ { "sku": "SP001", "quantity": 2 } ] } */
+/** Body: { "items": [ { "sku": "SP001", "quantity": 2, "shelfId": "..." } ] } (shelfId chỉ dùng khi nhập kho) */
 @Getter
 @Setter
 public class StockRequest {
@@ -27,5 +27,8 @@ public class StockRequest {
         @NotNull(message = "Số lượng không được để trống")
         @Min(value = 1, message = "Số lượng phải lớn hơn 0")
         private Integer quantity;
+
+        /** Kệ được chọn để xếp hàng khi nhập kho (tùy chọn). */
+        private String shelfId;
     }
 }

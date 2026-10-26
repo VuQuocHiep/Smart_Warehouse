@@ -13,4 +13,7 @@ export const inventoryApi = {
     getUsedSkus: () => {
         return api.get("/inventory/used-skus")
     },
+    getPlacements: (data) => {
+        return api.post("/inventory/placement-suggestions", data)
+    },
 }
