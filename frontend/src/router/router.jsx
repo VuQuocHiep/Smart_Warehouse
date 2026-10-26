@@ -1,3 +1,4 @@
+import DemandForecastDashboard from '../components/DemandForecastDashboard.jsx'
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 import LoginPage from '../layout/login/login.jsx'
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/admin" element={<RequireRole role="admin"> <Admin /></RequireRole>}>
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<OverviewAdmin />} />
+        <Route path="forecast" element={<DemandForecastDashboard/>}/>
         <Route path="product" element={<Product/>}/>
         <Route path="warehouse" element={<Warehouse/>}/>
         <Route path="shelve" element={<Shelve/>}/>
@@ -78,6 +80,7 @@ function Router() {
         <Route path="iot" element={<IotManager/>}/>
         <Route path="alert" element={<AlertManager/>}/>
         <Route path="history" element={<HistoryManager/>}/>
+        <Route path="forecast" element={<DemandForecastDashboard/>}/>
         <Route path="report" element={<ReportManager/>}/>
       </Route>
       <Route path="/staff" element={<RequireRole role="staff"><Staff /></RequireRole>}>

@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BoxPlotOutlined,
   DashboardOutlined,
+  LineChartOutlined,
   DownOutlined,
   ExportOutlined,
   FileTextOutlined,
@@ -31,6 +32,11 @@ const { Header, Sider, Content } = Layout
 const { Text } = Typography
 
 const menuItems = [
+  {
+    key: '/manager/forecast',
+    icon: <LineChartOutlined />,
+    label: <Link to="/manager/forecast">Dự báo nhu cầu</Link>,
+  },
   {
     key: '/manager/overview',
     icon: <DashboardOutlined />,

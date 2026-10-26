@@ -132,14 +132,27 @@ cd Smart_Warehouse
 
 ### 2. Configure environment variables
 
-Create a `.env` file or set the following environment variables before starting the backend:
+Set the following environment variables in the terminal that starts the backend
+(a `.env` file is not loaded automatically):
 
 ```bash
 DB_USERNAME=root
 DB_PASSWORD=your_mysql_password
 ```
 
-> **Note:** The database name is `smart_warehouse`. Flyway will create all tables automatically on first run.
+The configured database is **`iot`** on `localhost:3306`. Create the empty database
+in MySQL Workbench before starting the backend:
+
+```sql
+CREATE DATABASE IF NOT EXISTS iot CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+On Windows PowerShell, set credentials in the same terminal:
+
+```powershell
+$env:DB_USERNAME = 'root'
+$env:DB_PASSWORD = 'your_mysql_password'
+```
 
 ### 3. Run the Backend
 
@@ -149,7 +162,30 @@ cd backend/iot
 mvnw.cmd spring-boot:run      # Windows
 ```
 
-On startup, **Flyway automatically runs** `V1__initial_database.sql` to create all tables. No manual SQL import needed.
+On a fresh database, Flyway runs `B1__jpa_initial_schema.sql`, followed by V2–V7.
+The baseline creates the UUID-based tables used by the current JPA entities;
+later migrations add monitoring tables and four demo warehouses. Hibernate then
+validates the schema. No manual SQL import is needed.
+
+Do not manually run the legacy `V1__initial_database.sql`: it switches to
+`smart_warehouse`, drops that database, and creates an older hardware schema
+that does not match the current entities. The file is retained unchanged for
+existing Flyway histories. Existing databases do not run the new B1 baseline.
+
+If an earlier startup recorded a failed V2 migration, restarting or running
+Flyway `repair` alone will not create the missing base tables. For a **confirmed
+disposable development database with no data to keep**, stop the backend and
+recreate only `iot` in MySQL Workbench before restarting:
+
+```sql
+DROP DATABASE IF EXISTS iot;
+CREATE DATABASE iot CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+This deletes everything in `iot`, including the failed migration history. For a
+database containing data, back it up and reconcile the schema before repairing
+the history; do not use this reset. Automatic baselining of nonempty databases
+is disabled so incomplete schemas cannot silently skip initialization.
 
 The backend will be available at: `http://localhost:8080`
 
@@ -171,8 +207,9 @@ Migration scripts live at:
 
 ```
 backend/iot/src/main/resources/db/migration/
-├── V1__initial_database.sql    ← Initial schema
-└── V2__....sql                 ← Future migrations
+├── B1__jpa_initial_schema.sql  ← Current base schema for fresh databases
+├── V1__initial_database.sql    ← Legacy schema; do not import manually
+└── V2__....sql                 ← Monitoring migrations applied after B1
 ```
 
 **Rules for the team:**
@@ -184,6 +221,14 @@ backend/iot/src/main/resources/db/migration/
    V3__add_column_shelf_status.sql
    ```
 3. Run the app — Flyway auto-applies only the new scripts.
+
+To verify startup migrations against MySQL, set `MYSQL_TEST_URL` (for example
+`jdbc:mysql://localhost:3306/mysql`), `MYSQL_TEST_USER` and `MYSQL_TEST_PASSWORD`,
+then run `./mvnw test -Dtest=MySqlBootstrapTest` (`.\mvnw.cmd` on PowerShell).
+The user must be allowed to create/drop databases. This test creates a uniquely
+named temporary schema, applies all migrations, validates every JPA entity,
+checks warehouse seeds and verifies a second migration makes no changes. It
+drops only its temporary schema. Without `MYSQL_TEST_URL`, the test is skipped.
 
 ---
 
