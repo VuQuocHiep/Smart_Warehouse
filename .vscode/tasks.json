@@ -1,0 +1,56 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ESP32: Xem cong COM",
+      "type": "process",
+      "command": "${env:LOCALAPPDATA}/Programs/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe",
+      "args": ["--config-file", "${env:USERPROFILE}/.arduinoIDE/arduino-cli.yaml", "board", "list"],
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: Build firmware",
+      "type": "process",
+      "command": "${env:LOCALAPPDATA}/Programs/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe",
+      "args": [
+        "--config-file", "${env:USERPROFILE}/.arduinoIDE/arduino-cli.yaml",
+        "compile", "--fqbn", "esp32:esp32:esp32",
+        "--build-path", "${workspaceFolder}/hardware/build-scale",
+        "${workspaceFolder}/hardware/warehouse_ai"
+      ],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "ESP32: Upload firmware",
+      "type": "process",
+      "command": "${env:LOCALAPPDATA}/Programs/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe",
+      "args": [
+        "--config-file", "${env:USERPROFILE}/.arduinoIDE/arduino-cli.yaml",
+        "upload", "--fqbn", "esp32:esp32:esp32", "--port", "${input:espPort}",
+        "--input-dir", "${workspaceFolder}/hardware/build-scale",
+        "${workspaceFolder}/hardware/warehouse_ai"
+      ],
+      "dependsOn": "ESP32: Build firmware",
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: Serial Monitor",
+      "type": "process",
+      "command": "${env:LOCALAPPDATA}/Programs/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe",
+      "args": [
+        "--config-file", "${env:USERPROFILE}/.arduinoIDE/arduino-cli.yaml",
+        "monitor", "--port", "${input:espPort}", "--config", "baudrate=115200"
+      ],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "espPort",
+      "type": "promptString",
+      "description": "Nhap cong COM cua ESP32 (xem task ESP32: Xem cong COM; vi du COM3)"
+    }
+  ]
+}

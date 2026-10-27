@@ -53,6 +53,7 @@ const request = async (
 
     throw new Error(
       responseBody?.message ||
+      (typeof responseBody === 'string' ? responseBody : null) ||
       responseBody?.error ||
       `Backend lỗi ${response.status}`
     )

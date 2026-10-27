@@ -1,3 +1,1 @@
-export default function WeighingManager(){
-    
-}
+export { default } from '../staff/WeighingPage';
