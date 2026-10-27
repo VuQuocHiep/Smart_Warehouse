@@ -24,6 +24,7 @@ public class SecurityConfig {
 		http.authorizeHttpRequests(authorizeHttpRequestsCustomizer->authorizeHttpRequestsCustomizer
             .requestMatchers(HttpMethod.POST,"/auth/login").permitAll()
             .requestMatchers(HttpMethod.POST,"/api/sensor/readings").permitAll()
+            .requestMatchers(HttpMethod.POST,"/api/scale/readings").permitAll()
             .anyRequest().authenticated()
         );
         http.cors(Customizer.withDefaults());

@@ -4,7 +4,7 @@ Luồng dự đoán RandomForest và firmware nhận lệnh AI được mô tả
 
 1. Admin/Manager mở **Sản phẩm**, nhập nhiệt độ tối thiểu/tối đa (°C) và độ ẩm tối thiểu/tối đa (%). Ngưỡng do người quản lý tự cấu hình theo yêu cầu bảo quản của sản phẩm; để trống nghĩa là không kiểm tra giới hạn đó.
 2. Mở **Kệ hàng**, chọn một trong 4 ô Kho 1–4 ở trên cùng để xem kệ của kho đó. Có thể tạo thêm kệ và gán các sản phẩm. Kho 1 nhận số đo ESP dùng chung cho tất cả kệ trong kho. Kho 2–4 dùng số đo giả lập và không cần gắn ESP.
-3. Đặt biến môi trường `IOT_INGEST_KEY` cho backend trước khi khởi động, dùng cùng khóa trong firmware. Không đưa khóa vào frontend. Nếu khóa trống, backend từ chối nhận số đo.
+3. Backend mặc định dùng khóa `esp32-warehouse-01`, khớp firmware. Có thể đặt biến môi trường `IOT_INGEST_KEY` trước khi khởi động để thay khóa; khi đó phải sửa `deviceKey` trong firmware cho khớp. Không đưa khóa vào frontend. Nếu cấu hình khóa trống, backend từ chối nhận số đo.
 4. ESP gửi HTTP POST `/api/sensor/readings` với header `Content-Type: application/json` và `X-Device-Key: <khóa cấu hình>`:
 
 ```json

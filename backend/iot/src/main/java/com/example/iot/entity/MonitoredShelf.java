@@ -23,4 +23,5 @@ public class MonitoredShelf {
     private Double temperature;
     private Double humidity;
     private LocalDateTime recordedAt;
+    private Integer capacity;
 }
