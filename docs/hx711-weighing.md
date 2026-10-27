@@ -20,7 +20,7 @@ Thư viện được đối chiếu với [API chính thức HX711](https://gith
 
 ## Chạy phần mềm
 
-1. Khởi động backend với MySQL và các biến môi trường hiện có. Flyway chạy `V10__scale_weighing.sql`, thêm cấu hình sai số, bằng chứng cân và liên kết với lịch sử nhập/xuất.
+1. Khởi động backend với MySQL theo [hướng dẫn local](../README.md#local). Flyway áp dụng migration còn thiếu đến V11: V8/V9 tạo tồn và vị trí kệ, V10 thêm bằng chứng cân, V11 đặt sai số mặc định ±50 g. Không cần Python cho cân.
 2. Chạy frontend như trước (`npm run dev`). Mục **Cân hàng** dùng chung cho admin, manager, staff.
 3. Biên dịch / nạp lại sketch `warehouse_ai`, mở Serial 115200 baud. Chưa có hiệu chuẩn thì giao diện báo **Chưa hiệu chuẩn**; không dùng số RAW như số gram.
 
@@ -30,7 +30,7 @@ Thư viện được đối chiếu với [API chính thức HX711](https://gith
 
 Đã có `.vscode/tasks.json` dùng Arduino CLI đi kèm bản Arduino IDE đang cài, cùng board package / thư viện có sẵn. Không cần copy sketch hoặc cài PlatformIO.
 
-1. Mở **cả thư mục dự án** `D:\Smart_Warehouse-feat-camera-scanner` trong VS Code; lưu các thay đổi firmware trước khi build.
+1. Mở **thư mục gốc repository hiện tại** trong VS Code; các task dùng `${workspaceFolder}`. Lưu firmware trước khi build, không cần dùng đường dẫn trên máy tác giả.
 2. Nhấn **Ctrl+Shift+B** để chạy `ESP32: Build firmware`. Đây chỉ là biên dịch, chưa nạp thiết bị.
 3. Cắm ESP32 qua USB dữ liệu. Nhấn **Ctrl+Shift+P → Tasks: Run Task → ESP32: Xem cong COM** để xác định cổng.
 4. Chạy task **ESP32: Upload firmware**, nhập đúng cổng COM. Task tự build rồi nạp. Đóng Serial Monitor trước khi nạp để nhả cổng COM.

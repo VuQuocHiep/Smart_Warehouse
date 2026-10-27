@@ -1,37 +1,61 @@
-# Giám sát bảo quản sản phẩm theo kệ
+# Giám sát bảo quản sản phẩm
 
-Luồng dự đoán RandomForest và firmware nhận lệnh AI được mô tả tại [AI/README.md](../AI/README.md). Hướng dùng ADC MQ-2 trực tiếp, thu dữ liệu và train model riêng nằm tại [AI/MQ2.md](../AI/MQ2.md). `gas` lưu ADC MQ-2; nếu có model MQ-2 đúng thiết bị thì backend dùng trực tiếp số đo này để dự đoán. Thiếu model trả `MQ2_MODEL_REQUIRED` nhưng vẫn lưu số đo. API còn nhận `gasTvocPpb` cho model TVOC cũ riêng biệt, không dùng ADC thay TVOC. Phản hồi POST là số đo đã lưu kèm kết quả AI, thay vì bản ghi kệ.
+## Luồng hiện tại
 
-1. Admin/Manager mở **Sản phẩm**, nhập nhiệt độ tối thiểu/tối đa (°C) và độ ẩm tối thiểu/tối đa (%). Ngưỡng do người quản lý tự cấu hình theo yêu cầu bảo quản của sản phẩm; để trống nghĩa là không kiểm tra giới hạn đó.
-2. Mở **Kệ hàng**, chọn một trong 4 ô Kho 1–4 ở trên cùng để xem kệ của kho đó. Có thể tạo thêm kệ và gán các sản phẩm. Kho 1 nhận số đo ESP dùng chung cho tất cả kệ trong kho. Kho 2–4 dùng số đo giả lập và không cần gắn ESP.
-3. Backend mặc định dùng khóa `esp32-warehouse-01`, khớp firmware. Có thể đặt biến môi trường `IOT_INGEST_KEY` trước khi khởi động để thay khóa; khi đó phải sửa `deviceKey` trong firmware cho khớp. Không đưa khóa vào frontend. Nếu cấu hình khóa trống, backend từ chối nhận số đo.
-4. ESP gửi HTTP POST `/api/sensor/readings` với header `Content-Type: application/json` và `X-Device-Key: <khóa cấu hình>`:
+ESP gửi nhiệt độ, độ ẩm và ADC MQ-2. Backend dùng RandomForest nhiệt độ/độ ẩm
+kết hợp ngưỡng gas; xem [AI/HYBRID.md](../AI/HYBRID.md).
+Model MQ-2 ba đầu vào và TVOC trong tài liệu cũ là các luồng tham khảo,
+không phải nhánh suy luận hiện tại. Không quy đổi ADC thành TVOC bằng hệ số tùy ý.
 
-```json
-{
-  "deviceCode": "ESP_ENV_01",
-  "temperature": 32.5,
-  "humidity": 85,
-  "gas": 320
-}
+Ngưỡng bảo quản theo sản phẩm là kiểm tra riêng, không phải kết quả AI.
+Model cảnh báo thử nghiệm chưa được xác nhận là hệ thống phát hiện cháy thực tế.
+
+## Chạy và cấu hình
+
+1. Khởi động MySQL/backend/frontend theo [hướng dẫn local](../README.md#local); không cần Python.
+2. Admin/manager nhập ngưỡng nhiệt độ/độ ẩm trong Sản phẩm; để trống là không kiểm tra giới hạn đó.
+3. Trong Kệ kho, chọn kho, tạo kệ và gán sản phẩm cần giám sát.
+4. Sửa Wi-Fi, BACKEND_BASE_URL và deviceKey trong firmware; khóa phải khớp IOT_INGEST_KEY.
+5. deviceCode phải khớp monitoringDeviceCode của Kho 1, mặc định ESP_ENV_01.
+
+Kho 1 dùng số đo ESP chung cho các kệ, vẫn nhận dữ liệu khi chưa có kệ.
+Kho 2–4 dùng số đo mô phỏng và không nhận thay thế bằng telemetry ESP.
+Firmware tích hợp cân/môi trường tại [warehouse_ai.ino](../hardware/warehouse_ai/warehouse_ai.ino).
+API local là POST /api/sensor/readings; qua Compose là /backend/api/sensor/readings.
+
+```http
+POST /api/sensor/readings
+Content-Type: application/json
+X-Device-Key: <khoa-thiet-bi>
 ```
 
-ESP dùng địa chỉ IP LAN của máy chạy backend, cổng 8080. Endpoint này xác thực bằng khóa thiết bị, không cần JWT người dùng. Khi triển khai qua mạng công cộng, dùng HTTPS.
+```json
+{"deviceCode":"ESP_ENV_01","temperature":31.6,"humidity":69.1,"gas":339}
+```
 
-Mã `deviceCode` phải trùng thiết bị giám sát của Kho 1 (`monitoringDeviceCode`, xem tại Thông tin kho). Migration V6 chuyển liên kết ESP sang kho; không cần gắn ESP với kệ và vẫn nhận số đo nếu kho chưa có kệ. Backend lưu lịch sử và áp dụng số đo cho tất cả kệ Kho 1, kiểm tra mọi sản phẩm còn hoạt động trong từng kệ. Kho 2–4 từ chối số đo ESP và dùng số đo giả lập. Backend kiểm tra sản phẩm trong các kho giả lập mỗi 5 giây, lưu cảnh báo với nhãn Giả lập và hiển thị tại chuông giống luồng ESP. Migration V4 thêm trường phân biệt nguồn cảnh báo. Trường `gas` là tùy chọn. Bằng ngưỡng vẫn hợp lệ; thấp hơn tối thiểu hoặc cao hơn tối đa sẽ tạo cảnh báo kèm tên kho, kệ, tên sản phẩm/SKU, số đo và giới hạn bị vi phạm.
+Đây là ví dụ payload, không phải dữ liệu hiệu chuẩn. Thiếu/không hợp lệ đầu vào
+thì không có lệnh điều khiển hợp lệ. Phản hồi chứa số đo và kết quả phân tích;
+ESP kiểm tra phản hồi trước khi áp dụng đèn/quạt/còi.
+Chu kỳ môi trường hiện là khoảng 60 giây, không nhầm với cập nhật cân khoảng 1 giây.
 
-Một sản phẩm có một cảnh báo trong mỗi đợt vượt ngưỡng, gộp nhiệt độ và độ ẩm. Các gói tiếp theo trong cùng đợt không tạo thông báo lặp. Khi cả hai chỉ số về ngưỡng, đợt kết thúc; nếu lại vượt ngưỡng sẽ tạo cảnh báo mới. Gỡ sản phẩm khỏi kệ cũng kết thúc cảnh báo đang mở. Thay đổi ngưỡng sản phẩm được áp dụng từ gói ESP tiếp theo. Số đo cuối cùng hiển thị ở trang kệ; sau 60 giây không có số đo mới được đánh dấu dữ liệu cũ.
+## Cảnh báo và API đọc
 
-Thông báo hiển thị qua nút chuông ở mọi trang sau đăng nhập, kiểm tra mỗi 5 giây khi web đang mở. Lịch sử lưu trong database và hiển thị tối đa 100 cảnh báo gần nhất. Mỗi người dùng tự đánh dấu đã đọc; trạng thái đó lưu riêng. Các tài khoản hiện dùng chung phạm vi kho của ứng dụng. Backend vẫn ghi cảnh báo khi người dùng đóng web; khi mở lại sẽ tải từ server.
+Backend đối chiếu số đo với ngưỡng từng sản phẩm đang được gán trên kệ.
+Một đợt vượt ngưỡng được gộp cảnh báo; trở lại bình thường rồi vượt tiếp là đợt mới.
+Cảnh báo mô phỏng có nhãn nguồn. Chuông trên web lấy cập nhật định kỳ bằng REST;
+người dùng có trạng thái đã đọc riêng. Chưa có luồng gửi Telegram/Zalo/Email được xác nhận.
 
-Migration `V2__product_environment_monitoring.sql` thêm các cột ngưỡng và bảng giám sát riêng, không sửa V1. Kệ giám sát nhiều SKU độc lập với bảng `shelf` cũ dành cho cân một SKU. Dữ liệu kệ cũ chưa được tự chuyển. **Lưu ý sẵn có của dự án:** V1 tạo database `smart_warehouse` với khóa BIGINT, trong khi cấu hình hiện tại trỏ `iot` và các entity Product/Warehouse dùng UUID. Cần đồng bộ schema hiện có với entity trước khi chạy ứng dụng mới trên database trắng; V2 không sửa sự lệch schema này. Không chạy lại V1 trên database có dữ liệu vì V1 chứa DROP DATABASE.
+- GET /api/warehouses/monitoring: bốn kho, số đo và nguồn.
+- GET /api/sensor/latest: số đo ESP gần nhất.
+- GET /api/sensor/history?limit=60: lịch sử số đo ESP.
+- GET /api/product-alerts: cảnh báo bảo quản; người dùng cần đăng nhập.
 
-## Lỗi khởi động thiếu bảng cảnh báo
+Kho 1 chưa nhận ESP hiển thị chờ dữ liệu, không tự thay bằng giả lập.
 
-Spring Boot 4 cần dependency `org.springframework.boot:spring-boot-starter-flyway` để tự động chạy migration trước khi Hibernate kiểm tra schema; chỉ khai báo `flyway-core` và `flyway-mysql` chưa kích hoạt phần tự cấu hình này. Dự án đã dùng starter cùng `flyway-mysql`.
+## Database
 
-Với database `iot` hiện tại đã có các bảng UUID, `baseline-on-migrate=true` ghi nhận phiên bản nền 1 rồi chạy V2 để thêm cột và bảng giám sát. Đã xác nhận migration V2 chạy thành công và Hibernate kiểm tra schema thành công trên database này. Khi đổi dependency, reload Maven rồi khởi động lại toàn bộ backend. Giữ `ddl-auto=validate`.
-
-Migration V3 tạo hoặc dùng lại Kho 1–4 theo tên, đánh dấu `monitoring_slot` cố định, thêm 2 kệ ban đầu cho kho chưa có kệ. Không tự gán sản phẩm mẫu. Các kho cũ khác được giữ trong database. Trang Kho hàng hiển thị 4 kho chính, cho sửa địa chỉ/mô tả và chuyển sang xem kệ của kho đã chọn.
-
-`GET /api/warehouses/monitoring` trả 4 kho, số kệ/sản phẩm và số đo. Kho 1 thiếu dữ liệu hiển thị chờ ESP, không thay bằng giả lập. Kho 2–4 có nhãn giả lập và số đo thay đổi mỗi 5 giây. `/api/sensor/latest` và `/api/sensor/history?limit=60` trả dữ liệu ESP thật của Kho 1. Các trang IoT dùng chung nguồn số đo từ API giám sát kho.
+Database mới dùng B1 rồi V2–V11 theo [README](../README.md).
+V2 thêm giám sát; V3 tạo kho demo; V4 phân biệt mô phỏng; V5–V7 thêm kết quả AI và liên kết thiết bị với kho.
+Giữ baseline-on-migrate=false và ddl-auto=validate. Không bật baseline tự động
+để che lỗi thiếu bảng; không chạy V1 legacy có DROP DATABASE.
+Nếu schema cũ lỗi, sao lưu và đối chiếu lịch sử Flyway trước khi sửa.

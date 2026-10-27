@@ -41,9 +41,11 @@ Collection lấy UUID kho từ `/warehouse/getAll`, tạo 12 sản phẩm và 24
 lấy từ SQL; `unit=ITEM` theo mặc định schema nguồn. Device code của kệ được
 tạo từ mã kho + tên kệ để không trùng giữa hai kho.
 
-Các trường lịch sử `created_at`, tồn kho, tải trọng kệ, thiết bị RFID và giao
-dịch chưa có API nhập tương ứng trong ứng dụng hiện tại. Chúng được lưu trong
-`warehouse_seed.data.json`, không được gửi tới endpoint không tồn tại.
+Ứng dụng đã có API `/inventory/stock-in`, `/inventory/stock-out` và lịch sử giao dịch,
+nhưng collection này chưa nhập dữ liệu tồn/lịch sử nguồn qua các API đó.
+Không có API import hàng loạt bảo toàn toàn bộ lịch sử nguồn trong collection.
+Dữ liệu nguồn còn lưu ở `warehouse_seed.data.json`; xem [luồng nhập/xuất](../../docs/inventory.md)
+để tạo tồn và giao dịch demo mới.
 
 ## Test dự báo nhu cầu
 

@@ -6,7 +6,7 @@ sang khóa UUID, bảng `product`, `monitored_shelf`, `monitored_shelf_product`.
 
 ## Chạy trong Workbench
 
-1. Chạy backend ít nhất một lần để Flyway tạo đầy đủ schema B1 + V2–V7 và
+1. Chạy backend ít nhất một lần để Flyway tạo đầy đủ schema B1 + V2–V11 và
    Kho 1–4, rồi dừng backend trong lúc seed.
 2. Mở `database/seeds/warehouse_seed_current.sql` trong MySQL Workbench.
 3. Kiểm tra dòng `USE iot`; đổi nếu datasource của bạn dùng database khác.
@@ -41,14 +41,16 @@ literal và các phép so sánh UUID, hỗ trợ cả bảng dùng `utf8mb4_unic
 
 ## Phần chưa thể seed vào schema hiện tại
 
-16.569 giao dịch, 24 tồn kho, 24 RFID và 4 thiết bị RFID nguồn không có bảng
-tương ứng trong schema ứng dụng hiện tại. Script không tự thêm bảng chưa được
-ứng dụng sử dụng. Dữ liệu đầy đủ vẫn có trong
+V8/V9 đã thêm bảng tồn kho, giao dịch và tồn theo kệ, nhưng script seed này
+chưa ánh xạ 16.569 giao dịch và 24 tồn kho nguồn vào các bảng mới. 24 RFID
+và 4 thiết bị RFID nguồn cũng không được nhập bởi script. Dữ liệu đầy đủ vẫn có trong
 `postman/warehouse-seed/warehouse_seed.data.json`.
 
 Đây là seed **catalog phục vụ test ứng dụng và demo dự báo**. Python hiện tự
 sinh lịch sử mô phỏng từ catalog; chưa đọc hoặc train từ lịch sử SQL nguồn.
-Để dùng chính lịch sử đó cần thêm schema giao dịch và adapter dự báo riêng.
+Để dùng chính lịch sử đó cần ánh xạ dữ liệu nguồn vào schema hiện tại và thêm adapter dự báo.
+Muốn thử luồng nhập/xuất mới, lập phiếu Nhập kho trên web để tạo tồn ban đầu;
+gán sản phẩm vào kệ giám sát không tự tạo số lượng tồn.
 
 ## Sinh lại SQL
 

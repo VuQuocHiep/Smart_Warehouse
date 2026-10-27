@@ -32,7 +32,10 @@ set "MQ2_GAS_LEVEL3=3200"
 
 Số đo không hợp lệ hoặc thiếu gas không phát lệnh điều khiển. Cấp 0 bật đèn xanh, 1 đèn đỏ, 2 đèn đỏ/quạt, 3 đèn đỏ/quạt/còi. Backend lưu cả cấp AI, cấp gas và nguồn quyết định cùng mỗi số đo qua migration V7, không tính lại lịch sử bằng model mới.
 
-Firmware đang gửi lên server không cần thay API hay nạp lại để nhận cấp kết hợp. Dòng Serial cũ `CAP CANH BAO TU AI MQ-2` là thông báo của firmware trước; nội dung thực nhận trong `riskLevel` hiện là cấp kết hợp AI nhiệt/ẩm và ngưỡng gas. Firmware có thể được sửa lời nhắc này ở lần nạp tiếp theo. Hai luồng train MQ-2 ADC và model TVOC cũ vẫn được giữ để tham khảo, không được gọi trong luồng nhận số đo hiện tại.
+Firmware hiện tích hợp môi trường và HX711 trong `hardware/warehouse_ai/warehouse_ai.ino`.
+Sửa `BACKEND_BASE_URL` để sinh cả URL môi trường và cân, rồi nạp lại theo
+[hướng dẫn HX711](../docs/hx711-weighing.md). `riskLevel` là mức kết hợp AI nhiệt/ẩm và ngưỡng gas.
+Hai luồng train MQ-2 ADC và model TVOC cũ vẫn giữ để tham khảo, không được gọi trong luồng nhận số đo hiện tại.
 
 Train/xuất lại:
 

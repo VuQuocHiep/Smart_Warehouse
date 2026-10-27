@@ -20,7 +20,7 @@ Module lấy danh mục từ `WarehouseEntity`, `ProductEntity`, `MonitoredShelf
 Lịch sử đang là **mô phỏng**, sinh độc lập theo ID+seed bằng Negative Binomial với 6 nhóm nhu cầu. SKU/người dùng đổi tên không đổi định danh chuỗi. Dữ liệu luôn đủ hàng; chưa phản ánh thiếu hàng hoặc đơn đang về. UI luôn ghi rõ nguồn mô phỏng.
 
 ## Khởi động
-Backend và database hiện có phải khởi động được trước. Tích hợp này không chạy/sửa migration V1–V7 và không khắc phục sai lệch schema UUID/BIGINT có sẵn. Không chạy lại V1 chứa `DROP DATABASE` để thử module.
+Backend và database phải khởi động theo [README](../README.md). Database mới dùng B1 rồi V2–V11; module dự báo không cần migration riêng. Không chạy lại V1 chứa `DROP DATABASE` để thử module. Các bảng giao dịch V8/V9 đã tồn tại nhưng dự báo chưa có adapter đọc lịch sử nhập/xuất thật.
 
 Từ thư mục gốc `Smart_Warehouse`, tạo môi trường Python riêng (đã kiểm tra với Python 3.14):
 
@@ -72,7 +72,7 @@ Service bị tắt mặc định để backend vẫn hoạt động khi không c
 | `GET /api/demand/jobs/{uuid}` | ADMIN/MANAGER; trạng thái QUEUED/RUNNING/SUCCEEDED/FAILED/INTERRUPTED |
 | `GET /api/demand/forecasts` | ADMIN/MANAGER; run thành công gần nhất, history, forecasts, metrics |
 
-Python dùng `X-Service-Token` cho cả health và API. Chạy `uvicorn` với **1 worker**, bind loopback. Tác vụ chạy bằng executor riêng nên API không chờ train xong. Tối đa 64 cặp; các truy cập đồng thời có cùng request dùng chung job, request khác nhận 409. Kết quả lỗi không thay thế run tốt trước đó. Nếu Python bị tắt khi job đang chạy, trạng thái được đọc là `INTERRUPTED`; mở lại trang hoặc bấm cập nhật để chạy lại.
+Python dùng `X-Service-Token` cho cả health và API. Chạy `uvicorn` với **1 worker**: local bind loopback, Docker bind 0.0.0.0:8091 trong mạng Compose và không publish cổng ML. Tác vụ chạy bằng executor riêng nên API không chờ train xong. Tối đa 64 cặp; các truy cập đồng thời có cùng request dùng chung job, request khác nhận 409. Kết quả lỗi không thay thế run tốt trước đó. Nếu Python bị tắt khi job đang chạy, trạng thái được đọc là `INTERRUPTED`; mở lại trang hoặc bấm cập nhật để chạy lại.
 
 Mỗi job sinh dữ liệu kết thúc vào hôm qua theo UTC+7, ghi `daily.csv` và dự báo vào `AI/demand/runtime/runs/<uuid>/`. Dữ liệu của cùng một ngày/ID/seed không đổi khi cửa sổ lịch sử dịch chuyển. Chỉ job huấn luyện mới tạo `artifacts/model.joblib` và báo cáo đánh giá; job dự đoán đọc trực tiếp artifact của lần huấn luyện gần nhất và dùng lịch sử mới.
 
@@ -83,6 +83,11 @@ Con trỏ `active.json` lưu riêng run kết quả và run mô hình, cùng `tr
 Con trỏ chỉ cập nhật sau khi kết quả hoàn chỉnh; lưu file tạm rồi rename khi công bố. Huấn luyện/dự đoán lỗi vẫn giữ kết quả và mô hình trước đó. Runtime không được commit; chưa có chính sách tự xóa run cũ. Không xóa run mô hình mà `active.json.model.runId` đang tham chiếu.
 
 ## Mô hình và giới hạn
+
+Docker dùng Python 3.12 trong image và volume tại `/app/runtime`; xem [Docker](docker.md).
+Image hiện không đóng gói model từ runtime local. Volume mới cần train lần đầu.
+Chế độ chỉ suy luận từ joblib cố định/tắt tự train mới là đề xuất, chưa có biến
+`DEMAND_TRAINING_ENABLED` trong code. Giữ cùng phiên bản dependency khi chuyển artifact.
 
 - LightGBM Poisson và L1, mỗi mô hình 200 cây, học chung các kho/SKU; so với trung bình 28 ngày, seasonal naive và trung bình theo thứ trong 4 tuần gần nhất.
 - Dự báo trực tiếp horizon 1–14, đặc trưng chỉ đến hết ngày gốc.
