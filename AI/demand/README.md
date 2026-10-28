@@ -1,24 +1,22 @@
 # Demand forecasting
 
-Module dự báo lượng xuất độc lập với AI cảnh báo môi trường ở thư mục cha.
+Module dự báo xuất kho độc lập với AI cảnh báo môi trường ở thư mục cha.
 
-Hướng dẫn tích hợp và chạy: [../../docs/demand-forecasting.md](../../docs/demand-forecasting.md).
+Hướng dẫn chạy và hợp đồng: [../../docs/demand-forecasting.md](../../docs/demand-forecasting.md).
 
-- `service.py`: FastAPI nội bộ, tái sử dụng joblib, train nền khi đủ 7 ngày và công bố kết quả.
-- `demand_model.py`: mô hình, benchmark theo thời gian và dự báo.
-- `test_demand_model.py`, `test_service.py`: kiểm thử dữ liệu và API.
-- `smoke_test.py`: chạy train thật qua hợp đồng HTTP với danh mục UUID thử nghiệm.
-- `runtime/`: dữ liệu/model/kết quả theo run, không commit vào Git.
+- `service.py`: worker FastAPI nhận snapshot lịch sử DB và job TRAIN/PREDICT từ backend; một Uvicorn worker, tối đa 64 cặp kho/sản phẩm.
+- `demand_model.py`: LightGBM, benchmark theo thời gian, lưu joblib và suy luận 14 ngày.
+- `test_demand_model.py`, `test_service.py`: kiểm tra mô hình, snapshot, job bền vững và tái sử dụng artifact.
+- `smoke_test.py --snapshot <file.json>`: train thật từ snapshot xuất bởi backend test, sau đó kiểm chứng PREDICT không train lại.
+- `runtime/`: artifact và kết quả bền vững theo run, không commit vào Git.
 
-CSV mô hình dùng `date,warehouse_id,product_id,export_quantity,data_quality,data_source`. ID là chuỗi ổn định theo entity JPA; tên kho và SKU chỉ là thông tin hiển thị. `data_source` bắt buộc là `SIMULATED` hoặc `REAL`; không trộn hai nguồn.
+Spring Boot chịu trách nhiệm train khởi tạo, train 05:00 thứ Hai theo giờ Việt Nam, suy luận hằng ngày và chạy bù. Python không tự sinh lịch sử hoặc train theo tuổi model khi truy cập. Nguồn lịch sử là `SIMULATED` hoặc `REAL`, được kiểm tra tách biệt.
 
-Giới hạn hiện tại: service chỉ chạy demo, tối đa 64 cặp kho/sản phẩm, 1 worker và 1 job một lúc. Mở dashboard tự tạo dự báo từ joblib đã lưu; chưa có mô hình hoặc đủ 7 ngày thì train lại. Chu kỳ được lưu trong `runtime/active.json` và tồn tại qua restart. Huấn luyện đến hạn được kích hoạt khi truy cập, không chạy định kỳ lúc không có truy cập. CLI hỗ trợ CSV REAL đã được xác minh, nhưng chưa có adapter đọc giao dịch thật từ database.
-
-CLI offline từ thư mục này:
+CSV dùng `date,warehouse_id,product_id,export_quantity,data_quality,data_source`. CLI offline vẫn có thể train/predict từ CSV đã xác minh:
 
 ```powershell
-.\.venv\Scripts\python.exe demand_model.py train --csv runtime/runs/<run-id>/daily.csv --output-dir runtime/offline
-.\.venv\Scripts\python.exe demand_model.py predict --csv runtime/runs/<run-id>/daily.csv --model runtime/offline/model.joblib --output runtime/offline/forecast.csv
+.\.venv\Scripts\python.exe demand_model.py train --csv <daily.csv> --output-dir runtime/offline
+.\.venv\Scripts\python.exe demand_model.py predict --csv <daily.csv> --model runtime/offline/model.joblib --output runtime/offline/forecast.csv
 ```
 
-Tham số CSV bắt buộc khi dùng CLI vì mặc định của phiên bản standalone trước đây không còn áp dụng cho danh mục UUID. Chỉ tải artifact joblib tin cậy. Giữ cùng phiên bản dependency khi tải model.
+CLI offline không tự công bố model cho service. Chỉ nạp joblib tin cậy, giữ cùng phiên bản thư viện khi chuyển artifact.

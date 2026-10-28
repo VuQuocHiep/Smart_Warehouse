@@ -1,6 +1,8 @@
 import { api } from "./api"
 
 export const inventoryApi = {
+    warehouseStock: () => api.get('/inventory/warehouse-stock'),
+    warehouses: () => api.get('/inventory/warehouses'),
     stock: (type, data) => {
         return api.post(type === "IN" ? "/inventory/stock-in" : "/inventory/stock-out", data)
     },

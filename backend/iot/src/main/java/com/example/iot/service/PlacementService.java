@@ -56,6 +56,7 @@ public class PlacementService {
     @Transactional(readOnly = true)
     public List<Result> suggest(StockRequest request) {
         List<MonitoredShelf> allShelves = new ArrayList<>(shelves.findAll());
+        allShelves.removeIf(s -> !java.util.Objects.equals(request.getWarehouseId(), s.getWarehouseId()));
         allShelves.sort(Comparator.comparing((MonitoredShelf s) -> String.valueOf(s.getWarehouseId()))
                 .thenComparing(s -> String.valueOf(s.getName())));
 

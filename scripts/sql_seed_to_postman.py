@@ -184,11 +184,11 @@ def build_collection(tables):
     const seeded = pairs.filter(p => /^SIM_SKU\\d{3}$/.test(p.sku));
     pm.test('24 seed warehouse/product pairs', () => pm.expect(seeded).to.have.lengthOf(24));
 }"""),
-        request('02 Start simulated training', 'POST', '/api/demand/demo-jobs', script="""if (pm.response.code === 202) {
+        request('02 Update database forecast', 'POST', '/api/demand/forecast-jobs', script="""if (pm.response.code === 202) {
     const data = pm.response.json();
     pm.test('Job ID returned', () => pm.expect(data.jobId).to.be.a('string').and.not.empty);
     if (data.jobId) pm.collectionVariables.set('jobId', data.jobId);
-}""", description='Requires the Python service and DEMAND_SERVICE_ENABLED=true. Generates NEW simulated history; does not import the SQL transaction history.'),
+}""", description='Requires V13 and a completed initial training job. Runs PREDICT from DB history using the saved joblib; does not generate history.'),
         request('03 Check job - repeat until SUCCEEDED', 'GET', '/api/demand/jobs/{{jobId}}', script="""if (pm.response.code === 200) {
     pm.test('Job has not failed', () => pm.expect(pm.response.json().status).to.not.be.oneOf(['FAILED', 'INTERRUPTED']));
 }"""),

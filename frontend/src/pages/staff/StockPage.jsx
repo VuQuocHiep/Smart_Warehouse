@@ -10,6 +10,7 @@ import { scaleApi } from "../../api/scale";
 import useScaleStatus from "../../hooks/useScaleStatus";
 import ScaleLive from "../../components/ScaleLive";
 import { canCaptureScale } from "../../utils/scale";
+import { formatDateTime } from "../../utils/date";
 
 const { Text } = Typography;
 
@@ -23,10 +24,11 @@ const unwrap = (res) => {
 };
 
 // Backend có thể trả thời gian dạng chuỗi ISO hoặc mảng [năm, tháng, ngày, giờ, phút, giây]
-const formatTime = (t) => {
+const formatTime = (t, row) => {
   if (!t) return "";
-  const d = Array.isArray(t) ? new Date(t[0], t[1] - 1, t[2], t[3] || 0, t[4] || 0, t[5] || 0) : new Date(t);
-  return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleString("vi-VN");
+  const iso = typeof t === 'string' && row?.warehouseId && !/(Z|[+-]\d{2}:\d{2})$/i.test(t) ? `${t}Z` : t;
+  const d = Array.isArray(t) ? new Date(t[0], t[1] - 1, t[2], t[3] || 0, t[4] || 0, t[5] || 0) : new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : formatDateTime(d);
 };
 
 const stockStatus = (stock) => {
@@ -49,6 +51,14 @@ export default function StockPage({ type }) {
   const canCreateProduct = isIn && !pathname.startsWith("/staff"); // chỉ nhập kho, và chỉ admin/manager được tạo sản phẩm mới
 
   const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseId, setWarehouseId] = useState(null);
+  useEffect(() => {
+    inventoryApi.warehouses().then((response) => {
+      const list = unwrap(response);
+      setWarehouses(Array.isArray(list) ? list : []);
+    }).catch((err) => message.error(err.message));
+  }, []);
   const { status: scaleStatus, error: scaleError } = useScaleStatus();
   const [capturing, setCapturing] = useState(null);
   const [clock, setClock] = useState(() => Date.now());
@@ -87,7 +97,7 @@ export default function StockPage({ type }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const list = unwrap(await inventoryApi.getAll());
+      const list = unwrap(await inventoryApi.warehouseStock());
       setStockList(Array.isArray(list) ? list : []);
     } catch (err) {
       setStockList([]);
@@ -108,7 +118,7 @@ export default function StockPage({ type }) {
   // Mỗi khi phiếu nhập thay đổi (thêm hàng, đổi số lượng), xin AI đề xuất lại vị trí xếp hàng
   const itemsKey = JSON.stringify(items.map((x) => [x.sku, x.quantity]));
   useEffect(() => {
-    if (!isIn || items.length === 0) {
+    if (!isIn || !warehouseId || items.length === 0) {
       setPlacements({});
       return undefined;
     }
@@ -116,7 +126,7 @@ export default function StockPage({ type }) {
       setSuggesting(true);
       try {
         const res = unwrap(
-          await inventoryApi.getPlacements({ items: items.map(({ sku, quantity }) => ({ sku, quantity })) })
+          await inventoryApi.getPlacements({ warehouseId, items: items.map(({ sku, quantity }) => ({ sku, quantity })) })
         );
         const map = {};
         (Array.isArray(res) ? res : []).forEach((r) => {
@@ -130,7 +140,7 @@ export default function StockPage({ type }) {
     }, 400);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsKey, isIn]);
+  }, [itemsKey, isIn, warehouseId]);
 
   // Kệ đang được chọn cho một SKU: ưu tiên lựa chọn của người dùng (nếu còn phù hợp), không thì kệ AI đề xuất
   const chosenShelf = (sku) => {
@@ -141,7 +151,7 @@ export default function StockPage({ type }) {
   };
 
   // Tra nhanh tồn kho theo SKU (sản phẩm chưa từng nhập thì tồn = 0)
-  const stockOf = (sku) => stockList.find((s) => s.sku === sku)?.stock ?? 0;
+  const stockOf = (sku) => stockList.find((s) => s.sku === sku && s.warehouseId === warehouseId)?.stock ?? 0;
 
   // Tra SKU rồi thêm vào phiếu; nếu chưa có sản phẩm thì (admin/manager, nhập kho) mở hộp tạo mới
   const lookupAndAdd = async (sku) => {
@@ -199,10 +209,11 @@ export default function StockPage({ type }) {
   const weighingBlocked = items.some((x) => x.useScale && !ticketValid(x));
 
   const confirm = async () => {
-    if (!items.length || overStock || weighingBlocked || capturing) return;
+    if (!warehouseId || !items.length || overStock || weighingBlocked || capturing) return;
     setSaving(true);
     try {
       await inventoryApi.stock(type, {
+        warehouseId,
         items: items.map(({ sku, quantity, useScale, weighing }) => ({ sku, quantity,
           shelfId: isIn ? chosenShelf(sku) : undefined, weighRequired: useScale,
           scaleTicketId: useScale ? weighing?.id : undefined })),
@@ -321,6 +332,7 @@ export default function StockPage({ type }) {
   ];
 
   const historyColumns = [
+    { title: 'Kho', dataIndex: 'warehouseName', render: (value) => value || 'Chưa xác định' },
     { title: "Thời gian", dataIndex: "createdAt", width: 170, render: formatTime },
     {
       title: "Loại",
@@ -334,9 +346,10 @@ export default function StockPage({ type }) {
       title: "Số lượng",
       dataIndex: "quantity",
       width: 100,
-      render: (q, row) => (row.type === "IN" ? <Text type="success">+{q}</Text> : <Text type="warning">-{q}</Text>),
+      render: (q, row) => <Text type={row.type === "IN" ? "success" : "warning"}>{q}</Text>,
     },
-    { title: "Tồn sau", dataIndex: "stockAfter", width: 90 },
+    { title: "Tồn tổng sau", dataIndex: "stockAfter", width: 100 },
+    { title: 'Tồn kho sau', dataIndex: 'warehouseStockAfter', render: (value) => value ?? '—' },
     { title: 'Kết quả cân', width: 210, render: (_, row) => row.weighing ?
       `${row.weighing.weightGrams.toFixed(2)} / ${row.weighing.expectedGrams.toFixed(2)} g (±${row.weighing.toleranceGrams.toFixed(2)} g)` : 'Không cân' },
     { title: "Vị trí / ghi chú", dataIndex: "note", ellipsis: true },
@@ -346,6 +359,9 @@ export default function StockPage({ type }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Card title={`${title} bằng quét mã`} extra={<Tag color={isIn ? "green" : "orange"}>{isIn ? "+ Nhập" : "- Xuất"}</Tag>}>
+        <Select aria-label="Kho nhập xuất" placeholder="Chọn kho nhập/xuất" value={warehouseId} style={{ width: '100%', marginBottom: 16 }} disabled={saving}
+          options={warehouses.map((w) => ({ value: w.warehouseId, label: w.name }))}
+          onChange={(id) => { setWarehouseId(id); setShelfChoice({}); setPlacements({}); }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", maxWidth: 560, marginInline: "auto" }}>
           <ScannerCamera onScan={addSku} onError={(m) => setStatus({ type: "error", message: m })} />
           <Alert showIcon type={status.type} title={status.message} />
@@ -395,7 +411,7 @@ export default function StockPage({ type }) {
             >
               Xóa phiếu
             </Button>
-            <Button type="primary" onClick={confirm} loading={saving} disabled={!items.length || overStock || weighingBlocked || Boolean(capturing)}>
+            <Button type="primary" onClick={confirm} loading={saving} disabled={!warehouseId || !items.length || overStock || weighingBlocked || Boolean(capturing)}>
               Xác nhận {title.toLowerCase()}
             </Button>
           </div>
@@ -413,7 +429,7 @@ export default function StockPage({ type }) {
         <Table
           rowKey="sku"
           columns={stockColumns}
-          dataSource={stockList}
+          dataSource={stockList.filter((row) => row.warehouseId === warehouseId)}
           pagination={false}
           size="small"
           locale={{ emptyText: "Chưa có hàng trong kho. Hãy nhập kho để bắt đầu." }}
@@ -424,6 +440,9 @@ export default function StockPage({ type }) {
       </Card>
 
       <Card title={pathname.startsWith("/staff") ? "Lịch sử nhập / xuất của bạn" : "Lịch sử nhập / xuất"}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          Số lượng là số đơn vị hàng của phiếu. Nhập làm tăng tồn; xuất làm giảm tồn.
+        </Text>
         <Table
           rowKey={(row, i) => `${row.createdAt}-${row.sku}-${i}`}
           columns={historyColumns}

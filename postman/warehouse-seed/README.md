@@ -55,7 +55,7 @@ trong `docs/demand-forecasting.md`. Token Java/Python phải giống nhau.
 Chạy **từng request** trong folder **05**:
 
 1. `Verify demand catalog`: kiểm tra đủ 24 cặp kho/sản phẩm của seed.
-2. `Start simulated training`: tạo job và tự lưu `jobId`.
+2. `Update database forecast`: tạo job PREDICT và tự lưu `jobId`; đợi job train khởi tạo sau V13 hoàn tất trước khi gọi.
 3. `Check job`: gửi lại request này cho đến khi `status=SUCCEEDED`.
 4. `Read latest forecast`: xem dự báo sau khi job hoàn tất.
 
@@ -63,9 +63,10 @@ Không chạy toàn bộ folder 05 một lượt rồi kỳ vọng train đã xo
 bố kết quả sau khi train thành công. Nếu đã có nhiều sản phẩm khác gán trên
 kệ, giới hạn demo là 64 cặp kho/sản phẩm cho toàn bộ catalog.
 
-Module dự báo hiện **tự sinh lịch sử mô phỏng mới** từ catalog; chưa nhận
-16.569 giao dịch từ file SQL. Kết quả demo không phải dự báo được train từ
-chính lịch sử SQL này. `DEMAND_SERVICE_TOKEN` chỉ cấu hình ở Java/Python;
+Module dự báo hiện đọc lịch sử DB của **V13**, gồm catalog DEMAND_V13 riêng và 730 ngày mẫu;
+không tự sinh lịch sử khi gọi API và không tự nhập 16.569 giao dịch nguồn của collection này.
+Train khởi tạo tự chạy khi backend/ML sẵn sàng, sau đó train lúc 05:00 thứ Hai theo giờ Việt Nam.
+`DEMAND_SERVICE_TOKEN` chỉ cấu hình ở Java/Python;
 Postman dùng JWT đăng nhập backend, không dùng token nội bộ đó.
 
 ## Sinh lại file

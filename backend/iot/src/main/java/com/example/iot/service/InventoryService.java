@@ -43,6 +43,7 @@ public class InventoryService {
     private final ShelfStockRepository shelfStocks;
     private final WarehouseRepository warehouses;
     private final ScaleService scaleService;
+    private final WarehouseStockService warehouseStock;
 
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Transactional
@@ -82,6 +83,8 @@ public class InventoryService {
         List<StockTransactionEntity> list = seeAll
                 ? transactionRepository.findTop200ByOrderByCreatedAtDesc()
                 : transactionRepository.findTop200ByCreatedByOrderByCreatedAtDesc(auth != null ? auth.getName() : "");
+        Map<String,String> names = new HashMap<>();
+        warehouses.findAll().forEach(w -> names.put(w.getWarehouseId(), w.getName()));
 
         return list.stream()
                 .map(t -> new StockHistoryItem(
@@ -92,7 +95,8 @@ public class InventoryService {
                         t.getStockAfter(),
                         t.getCreatedBy(),
                         t.getCreatedAt(),
-                        t.getNote(), StockHistoryItem.WeightEvidence.from(t.getWeighing())))
+                        t.getNote(), StockHistoryItem.WeightEvidence.from(t.getWeighing()),
+                        t.getWarehouseId(), names.get(t.getWarehouseId()), t.getWarehouseStockAfter(), t.getDataSource()))
                 .toList();
     }
 
@@ -103,6 +107,15 @@ public class InventoryService {
         return transactionRepository.findUsedSkus();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getWarehouseStock() { return warehouseStock.stocks(); }
+
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    public List<Map<String,Object>> getWarehouses() {
+        return warehouses.findByDeletedFalse().stream().map(w -> Map.<String,Object>of("warehouseId",w.getWarehouseId(),"name",w.getName())).toList();
+    }
+
     /**
      * Xử lý cả phiếu trong một transaction: nếu một dòng lỗi (SKU không có, xuất quá tồn, kệ hết chỗ)
      * thì toàn bộ phiếu bị hủy, không dòng nào được lưu.
@@ -110,10 +123,20 @@ public class InventoryService {
     private List<StockItemResult> apply(StockRequest request, StockType type) {
         String user = currentUser();
         List<StockItemResult> results = new ArrayList<>();
+        String warehouseId = request.getWarehouseId();
+        if (warehouseId == null || warehouses.findById(warehouseId).filter(w -> !w.isDeleted()).isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Cần chọn kho đang hoạt động.");
+        }
 
-        for (StockRequest.Item item : request.getItems()) {
-            ProductEntity product = productRepository.findBySkuAndDeletedFalse(item.getSku().trim())
-                    .orElseThrow(() -> new RuntimeException("SKU không tồn tại: " + item.getSku()));
+        // Acquire all product locks before any shelf locks or mutations.
+        var ordered = request.getItems().stream().sorted(Comparator.comparing(i -> i.getSku().trim())).toList();
+        Map<String,ProductEntity> lockedProducts = new HashMap<>();
+        for (var item : ordered) lockedProducts.computeIfAbsent(item.getSku().trim(), sku -> productRepository.findForUpdateBySku(sku)
+                .orElseThrow(() -> new RuntimeException("SKU không tồn tại: " + sku)));
+        shelves.findByWarehouseId(warehouseId).stream().sorted(Comparator.comparing(MonitoredShelf::getId))
+                .forEach(s -> shelves.findForUpdateById(s.getId()).orElseThrow());
+        for (StockRequest.Item item : ordered) {
+            ProductEntity product = lockedProducts.get(item.getSku().trim());
 
             InventoryEntity inventory = inventoryRepository.findByProduct(product)
                     .orElseGet(() -> InventoryEntity.builder().product(product).quantity(0).build());
@@ -131,9 +154,10 @@ public class InventoryService {
                         + " (hiện có " + inventory.getQuantity() + ", cần xuất " + qty + ")");
             }
 
+            int warehouseAfter = warehouseStock.change(warehouseId, product.getProductId(), type == StockType.IN ? qty : -qty);
             String note = type == StockType.IN
-                    ? placeOnShelf(product, qty, item.getShelfId())
-                    : takeFromShelves(product, qty);
+                    ? placeOnShelf(product, qty, item.getShelfId(), warehouseId)
+                    : takeFromShelves(product, qty, warehouseId);
 
             inventory.setQuantity(newStock);
             inventoryRepository.save(inventory);
@@ -143,6 +167,10 @@ public class InventoryService {
                     .type(type)
                     .quantity(qty)
                     .stockAfter(newStock)
+                    .warehouseId(warehouseId)
+                    .warehouseStockAfter(warehouseAfter)
+                    .dataSource(warehouseStock.source(warehouseId, product.getProductId()))
+                    .createdAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC))
                     .createdBy(user)
                     .note(note)
                     .weighing(weighing)
@@ -154,14 +182,15 @@ public class InventoryService {
     }
 
     /** Nhập kho: xếp hàng vào kệ đã chọn (kiểm tra sức chứa), trả về ghi chú vị trí. */
-    private String placeOnShelf(ProductEntity product, int qty, String shelfId) {
+    private String placeOnShelf(ProductEntity product, int qty, String shelfId, String warehouseId) {
         if (shelfId == null || shelfId.isBlank()) {
             return "Nhập kho, chưa chỉ định kệ";
         }
-        MonitoredShelf shelf = shelves.findById(shelfId)
+        MonitoredShelf shelf = shelves.findForUpdateById(shelfId)
                 .orElseThrow(() -> new RuntimeException("Kệ không tồn tại"));
+        if (!warehouseId.equals(shelf.getWarehouseId())) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Kệ không thuộc kho đã chọn.");
         int capacity = shelf.getCapacity() == null ? DEFAULT_CAPACITY : shelf.getCapacity();
-        long used = shelfStocks.sumQuantity(shelfId);
+        long used = shelfStocks.findByShelfId(shelfId).stream().mapToLong(ShelfStockEntity::getQuantity).sum();
         if (used + qty > capacity) {
             throw new RuntimeException("Kệ " + shelf.getName() + " không đủ sức chứa (còn trống "
                     + Math.max(0L, capacity - used) + ", cần " + qty + ")");
@@ -171,14 +200,17 @@ public class InventoryService {
                         .shelfId(shelfId).productId(product.getProductId()).quantity(0).build());
         row.setQuantity(row.getQuantity() + qty);
         shelfStocks.save(row);
+        shelf.getProductIds().add(product.getProductId());
+        shelves.save(shelf);
         return limit("Xếp vào " + shelfLabel(shelf));
     }
 
     /** Xuất kho: trừ lần lượt từ các kệ đang chứa nhiều hàng này nhất, trả về ghi chú nơi lấy. */
-    private String takeFromShelves(ProductEntity product, int qty) {
+    private String takeFromShelves(ProductEntity product, int qty, String warehouseId) {
         int remaining = qty;
         List<String> parts = new ArrayList<>();
         for (ShelfStockEntity row : shelfStocks.findByProductIdOrderByQuantityDesc(product.getProductId())) {
+            if (shelves.findById(row.getShelfId()).filter(s -> warehouseId.equals(s.getWarehouseId())).isEmpty()) continue;
             if (remaining <= 0) {
                 break;
             }

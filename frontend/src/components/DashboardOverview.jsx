@@ -353,12 +353,12 @@ export default function DashboardOverview({ role = 'admin' }) {
             <div className="overview-warehouse-network">
               {visibleWarehouses.map((item, index) => (
                 <article key={item?.warehouseId || item?.name || index}>
-                  <span><ShopOutlined /></span>
+                  <span className="overview-warehouse-icon"><ShopOutlined /></span>
                   <div>
                     <strong>{item?.name || `Kho ${index + 1}`}</strong>
                     <em>{item?.address || 'Chưa cập nhật địa chỉ'}</em>
                   </div>
-                  <Tag color={item?.description ? 'green' : 'gold'}>
+                  <Tag className="overview-warehouse-status" color={item?.description ? 'green' : 'gold'}>
                     {item?.description ? 'Đã mô tả' : 'Cần bổ sung'}
                   </Tag>
                 </article>

@@ -1,5 +1,13 @@
 # Seed cho database hiện tại
 
+## Seed lịch sử tự động bằng Flyway V13
+
+Backend hiện tự chạy V12 (schema theo kho) và V13 (catalog DEMAND_V13, tồn và 730 ngày lịch sử mẫu).
+Không cần chạy file seed riêng để demo dự báo. V13 chạy một lần trên mỗi DB; restart không seed lại.
+Chi tiết: [dự báo xuất/nhập](../../docs/demand-forecasting.md).
+
+Phần dưới mô tả script catalog SIM_SKU cũ, có thể dùng độc lập nếu vẫn cần bộ catalog đó.
+
 Chạy `warehouse_seed_current.sql` bằng MySQL Workbench; không cần API seed.
 File lấy dữ liệu từ `D:/Pham/STUDY/HK7/IOT/BTL/warehouse_seed.sql` và chuyển
 sang khóa UUID, bảng `product`, `monitored_shelf`, `monitored_shelf_product`.
@@ -46,8 +54,8 @@ chưa ánh xạ 16.569 giao dịch và 24 tồn kho nguồn vào các bảng m�
 và 4 thiết bị RFID nguồn cũng không được nhập bởi script. Dữ liệu đầy đủ vẫn có trong
 `postman/warehouse-seed/warehouse_seed.data.json`.
 
-Đây là seed **catalog phục vụ test ứng dụng và demo dự báo**. Python hiện tự
-sinh lịch sử mô phỏng từ catalog; chưa đọc hoặc train từ lịch sử SQL nguồn.
+Đây là seed **catalog phục vụ test ứng dụng**. Module dự báo hiện đọc lịch sử từ DB do V13 nạp;
+script catalog SIM_SKU này không cung cấp lịch sử cho model.
 Để dùng chính lịch sử đó cần ánh xạ dữ liệu nguồn vào schema hiện tại và thêm adapter dự báo.
 Muốn thử luồng nhập/xuất mới, lập phiếu Nhập kho trên web để tạo tồn ban đầu;
 gán sản phẩm vào kệ giám sát không tự tạo số lượng tồn.

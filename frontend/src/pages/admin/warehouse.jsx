@@ -5,6 +5,7 @@ import { ArrowRightOutlined, EditOutlined, HomeOutlined, ReloadOutlined } from '
 import { updateWarehouse, warehouseApi } from '../../api/warehouse'
 import WarehouseSelector from '../../components/WarehouseSelector'
 import { readingStatus, sensorValue, SENSOR_STALE_MS } from '../../utils/warehouseDisplay'
+import { formatDateTime } from '../../utils/date'
 
 const displayDescription = warehouse => ['Kho mô phỏng: dữ liệu môi trường giả lập', 'Giám sát môi trường thực tế từ ESP32'].includes(warehouse.description)
   ? 'Giám sát môi trường kho hàng' : warehouse.description
@@ -65,7 +66,7 @@ export default function Warehouse() {
           title={readingStatus(selected.reading, now)} />
         <div className="warehouse-sensor-grid">{[['Nhiệt độ', 'temperature', '°C'], ['Độ ẩm', 'humidity', '%'], ['Khí gas', 'gas', 'ADC']].map(([label, key, unit]) =>
           <div className="warehouse-sensor-box" key={key}><span>{label}</span><strong>{sensorValue(selected.reading[key], unit)}</strong></div>)}</div>
-        <Typography.Paragraph type="secondary">{selected.reading.recordedAt ? `Cập nhật: ${new Date(selected.reading.recordedAt).toLocaleString('vi-VN')}` : 'Đang chờ dữ liệu môi trường kho.'}</Typography.Paragraph>
+        <Typography.Paragraph type="secondary">{selected.reading.recordedAt ? `Cập nhật: ${formatDateTime(selected.reading.recordedAt)}` : 'Đang chờ dữ liệu môi trường kho.'}</Typography.Paragraph>
         <Button type="primary" icon={<ArrowRightOutlined />} onClick={() => navigate(`${location.pathname.split('/').slice(0, 2).join('/')}/shelve?warehouse=${encodeURIComponent(selected.warehouse.warehouseId)}`)}>Xem {selected.shelfCount} kệ của {selected.warehouse.name}</Button>
       </Card>
       <Card title="Thông tin kho" extra={<Button icon={<EditOutlined />} onClick={() => { form.setFieldsValue({ ...selected.warehouse, description: displayDescription(selected.warehouse) }); setEditing(selected.warehouse) }}>Sửa</Button>}>

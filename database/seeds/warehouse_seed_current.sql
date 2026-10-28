@@ -568,5 +568,5 @@ AND p.sku IN (CONVERT(0x53494d5f534b55303031 USING utf8mb4) COLLATE utf8mb4_unic
 GROUP BY w.warehouse_id, w.name, w.monitoring_slot ORDER BY w.monitoring_slot;
 
 -- Legacy history is retained in postman/warehouse-seed/warehouse_seed.data.json.
--- There are no inventory_transaction, inventory, RFID or load-cell tables in the current JPA schema.
--- Demand demo training will generate fresh simulated history; it does not train on the source SQL transactions.
+-- This catalog script does not import source inventory/RFID/transactions.
+-- Forecast training reads DB history seeded separately by Flyway V13 (DEMAND_V13 catalog).

@@ -1,54 +1,66 @@
-# Tích hợp thử dự báo nhu cầu xuất kho
+# Dự báo xuất kho và nhu cầu nhập kho
 
-## Phần đã tích hợp
+## Luồng dữ liệu
 
 ```text
-Admin/Manager → Spring Boot /api/demand
-                    ↓ danh mục kho/sản phẩm UUID từ kệ hiện tại
-               Python FastAPI (127.0.0.1:8091)
-                    ↓ sinh 730 ngày lịch sử mô phỏng
-               joblib còn hạn → dự báo 14 ngày
-               Chưa có model / đủ 7 ngày → train + validation + test → lưu joblib
-                    ↓ lưu kết quả theo run và công bố run thành công
-               Spring Boot → dashboard dự báo
+MySQL: V12 schema → V13 seed (một lần)
+  → Spring tổng hợp OUT theo ngày/kho/sản phẩm
+  → snapshot có nguồn và ngày chốt → FastAPI /jobs
+  → TRAIN: LightGBM + đánh giá theo thời gian → model.joblib
+  → PREDICT: nạp model đã lưu → 14 ngày dự báo xuất
+  → Spring kết hợp tồn hiện tại → lượng nhập và cảnh báo 7 ngày
+  → /admin/forecast hoặc /manager/forecast
 ```
 
-Màn hình tại `/admin/forecast` và `/manager/forecast`, menu “Dự báo nhu cầu”. Staff không được gọi các API này. Token nội bộ chỉ ở backend/Python, không gửi về trình duyệt.
+Lịch train do backend điều phối, không phụ thuộc việc mở dashboard:
 
-Module lấy danh mục từ `WarehouseEntity`, `ProductEntity`, `MonitoredShelf`, dùng `warehouseId`/`productId` dạng chuỗi UUID. Các cặp kho/sản phẩm được khử trùng giữa nhiều kệ; bỏ sản phẩm/kho đã xóa mềm. Không dùng mã SIM làm định danh cho hàng thật, không ghi lượng xuất giả vào database.
+- Khởi tạo khi chưa có model phù hợp và đã có dữ liệu đầy đủ.
+- **05:00 sáng thứ Hai**, múi giờ `Asia/Ho_Chi_Minh`; chốt đến hết Chủ nhật.
+- **00:10 hằng ngày** cập nhật dự báo bằng model đã lưu.
+- Backend kiểm tra mỗi 30 giây để theo dõi job và chạy bù kỳ gần nhất sau downtime.
+- Khóa lease trong DB và mã job bền vững ở Python ngăn chạy trùng. Job thất bại được thử lại tối đa 3 lượt gửi, cách nhau ít nhất một phút.
+- Train lỗi giữ model và kết quả trước; dashboard hiển thị lỗi hoặc dữ liệu cũ.
 
-Lịch sử đang là **mô phỏng**, sinh độc lập theo ID+seed bằng Negative Binomial với 6 nhóm nhu cầu. SKU/người dùng đổi tên không đổi định danh chuỗi. Dữ liệu luôn đủ hàng; chưa phản ánh thiếu hàng hoặc đơn đang về. UI luôn ghi rõ nguồn mô phỏng.
+## V12 và V13
 
-## Khởi động
-Backend và database phải khởi động theo [README](../README.md). Database mới dùng B1 rồi V2–V11; module dự báo không cần migration riêng. Không chạy lại V1 chứa `DROP DATABASE` để thử module. Các bảng giao dịch V8/V9 đã tồn tại nhưng dự báo chưa có adapter đọc lịch sử nhập/xuất thật.
+V12 thêm kho phát sinh cho giao dịch, tồn theo kho, cấu hình tồn an toàn, thông tin độ đầy đủ lịch sử và quản lý job. Giao dịch cũ thiếu kho vẫn giữ `warehouse_id=NULL`; chỉ tồn thực sự trên kệ được phân bổ sang kho. Phần tồn chưa đối soát được sẽ không dùng để đề xuất nhập.
 
-Từ thư mục gốc `Smart_Warehouse`, tạo môi trường Python riêng (đã kiểm tra với Python 3.14):
+V13 tự tạo **12 sản phẩm `DEMAND_V13_001`–`DEMAND_V13_012`, 24 kệ tại Kho 1/2, 24 chuỗi và 30.920 giao dịch** trên 730 ngày. Catalog này có namespace riêng để giữ nguyên catalog `SIM_SKU` cũ. Ngày cuối mẫu là hôm qua theo giờ Việt Nam khi V13 lần đầu chạy. Các sản phẩm có tồn cuối 0, 40 hoặc 500 để demo các mức thiếu hàng.
+
+Flyway chạy V13 một lần trên mỗi database. Restart không cộng tồn lại, không kéo dài lịch sử mẫu và không thay đổi các giao dịch sau seed. Không sửa V13 đã áp dụng; muốn bổ sung dữ liệu thì thêm migration mới. Muốn bắt đầu lại toàn bộ demo thì dùng database demo mới. Mọi DB dùng migration mặc định đều nhận bộ mẫu V13.
+
+`scripts/generate_demand_v13.py` là công cụ tạo SQL cho nhà phát triển **trước khi phát hành V13**, không phải bước bắt buộc khi khởi động. Bộ dữ liệu có seed cố định 42. Nạp SQL có transaction; ID/SKU xung đột sẽ làm migration thất bại thay vì ghi đè.
+
+## Chạy local
+
+Khởi động MySQL theo README; cấu hình datasource và các biến môi trường ứng dụng như hiện có. Tạo môi trường Python nếu chưa có:
 
 ```powershell
 python -m venv AI/demand/.venv
 .\AI\demand\.venv\Scripts\python.exe -m pip install -r AI/demand/requirements.txt
 ```
 
-Terminal Python:
+Terminal ML:
 
 ```powershell
-$env:DEMAND_SERVICE_TOKEN = '<chuoi-bi-mat-noi-bo-do-ban-chon>'
+$env:DEMAND_SERVICE_TOKEN = '<token-noi-bo>'
 .\AI\demand\start.ps1
 ```
 
-Terminal backend, dùng **cùng token**, giữ nguyên các biến DB/IOT đang sử dụng:
+Terminal backend, dùng cùng token và giữ các biến DB đang sử dụng:
 
 ```powershell
 $env:DEMAND_SERVICE_ENABLED = 'true'
 $env:DEMAND_SERVICE_URL = 'http://127.0.0.1:8091'
-$env:DEMAND_SERVICE_TOKEN = '<cung-chuoi-bi-mat-voi-python>'
+$env:DEMAND_SERVICE_TOKEN = '<token-noi-bo>'
+$env:DEMAND_DATA_SOURCE = 'SIMULATED'
 cd backend/iot
 .\mvnw.cmd spring-boot:run
 ```
 
-Nếu Maven wrapper của máy báo `Cannot index into a null array`, dùng Maven đã cài để chạy `mvn spring-boot:run`; đây là lỗi wrapper hiện có. Không cần sửa wrapper để dùng module.
+Nếu wrapper gặp lỗi môi trường, dùng Maven đã cài. Backend tự migrate V12/V13; sau khi ML sẵn sàng sẽ tạo job train khởi tạo. Mở dashboard bằng tài khoản ADMIN/MANAGER để theo dõi. Nút **Cập nhật dự báo** chỉ suy luận; việc mở trang không kích hoạt train.
 
-Terminal frontend:
+Frontend:
 
 ```powershell
 cd frontend
@@ -56,63 +68,90 @@ npm ci
 npm run dev
 ```
 
-1. Đăng nhập ADMIN/MANAGER.
-2. Tạo sản phẩm nếu chưa có; gán sản phẩm vào kệ của kho.
-3. Mở “Dự báo nhu cầu”: trang tự tạo tác vụ cập nhật dự báo. Có thể chọn “Cập nhật dự báo” để chạy lại bước dự đoán.
-4. Chờ trạng thái `SUCCEEDED`, chọn kho/SKU để xem lịch sử 28 ngày và dự báo 14 ngày.
+Với Docker, Compose đã bật ML và mặc định chọn `SIMULATED`. Joblib và kết quả lưu tại volume `ml_data`; image không đóng gói model runtime của máy local. Xem [Docker](docker.md).
 
-Service bị tắt mặc định để backend vẫn hoạt động khi không cài Python. API trả 503 nếu chưa bật/token chưa cấu hình/Python chưa chạy; dashboard hiển thị thông báo thay vì dựng dữ liệu giả phía frontend.
+## Nguồn dữ liệu và giới hạn
 
-## Hợp đồng API
+V14 chuẩn hóa tên/SKU/ghi chú hiển thị: hàng hóa dùng mã `HH...`, tên hàng và tên kệ không còn tiền tố demo. Bảng `product_sku_alias` giữ mã cũ để barcode vẫn tra cứu được. V13 đã áp dụng được giữ nguyên checksum; V14 cập nhật dữ liệu một lần khi backend khởi động. Metadata nguồn gốc `data_source` và đợt seed vẫn được giữ nội bộ, không đổi dữ liệu sinh mẫu thành dữ liệu thực đã xác minh.
 
-| Spring Boot | Quyền / hành vi |
+Biểu đồ xuất tự hiển thị 21 ngày lịch sử + 7 ngày dự báo khi chiều rộng từ 1120 px, hoặc 14 + 7 trên khung hẹp hơn. Nhãn ngày là chữ không viền; toàn bộ ngày hiển thị dùng `dd/mm`, thời gian dùng `dd/mm HH:mm`. Định dạng ISO của API và dữ liệu model không thay đổi.
+
+- `DEMAND_DATA_SOURCE=SIMULATED` dùng ledger mẫu V13. `REAL` chỉ dùng chuỗi nghiệp vụ thật. Một model không trộn hai nguồn.
+- Backend truy vấn ledger đầy đủ; không dùng danh sách 200 giao dịch trên giao diện lịch sử để train.
+- Timestamp giao dịch mới và seed lưu UTC; backend cộng UTC+7 trước khi nhóm ngày. Dữ liệu cũ thiếu kho không tự được xem là lịch sử đã xác minh.
+- Lịch sử mới REAL được xem là đầy đủ từ ngày sau giao dịch đầu tiên; ngày đầu chỉ có một phần ngày được bỏ qua. Ngày không phát sinh trong khoảng ledger liên tục được ghi nhận 0.
+- `demand_series.complete_through` của dữ liệu mẫu được giới hạn ở ngày chốt seed. Sau ngày đó, hệ thống không tự giả định ngày trống là xuất 0; kết quả trả `STALE_DATA` nếu lịch sử chưa được bổ sung và xác minh.
+- Các thao tác demo trên sản phẩm thuộc chuỗi mẫu giữ nguồn `SIMULATED`; chúng không tự mở rộng mốc xác minh lịch sử. Để demo nhiều ngày cần bộ dữ liệu mới hoặc cập nhật phạm vi đã xác minh bằng migration bổ sung.
+- Chế độ REAL cần lịch sử đã xác minh đủ dài: benchmark hiện tại cần khoảng 22 tháng; suy luận bằng model chung cần tối thiểu 90 ngày cho chuỗi mới.
+- Tối đa 64 cặp mỗi model, một worker và một job tại một thời điểm. Dùng một Uvicorn worker.
+- Dữ liệu mẫu không chứng minh độ chính xác trên nhu cầu thực tế. Model dự báo lượng xuất đã quan sát, chưa phản ánh nhu cầu bị mất do hết hàng.
+
+## Artifact
+
+```text
+AI/demand/runtime/
+  active.json
+  runs/<job-id>/
+    request.json
+    job.json
+    daily.csv
+    result.json
+    artifacts/
+      model.joblib            # chỉ job TRAIN
+      metrics.json           # chỉ job TRAIN
+      metadata.json
+      forecast_14_days.csv
+```
+
+Metadata lưu dataset ID, nguồn, checksum snapshot, ngày chốt và phiên bản thư viện. Con trỏ chỉ đổi sau khi kết quả hoàn tất. PREDICT đọc artifact của lần train trước; train không diễn ra ngầm trong job dự báo. Dataset ID thay đổi khi tạo lại DB demo sẽ khiến model cũ không được dùng nhầm.
+
+Không xóa run mà `active.json.model.runId` đang tham chiếu. Chỉ nạp joblib tin cậy và giữ cùng phiên bản dependency khi chuyển artifact.
+
+## Lượng nhập và cảnh báo
+
+Dashboard hiển thị 7 ngày gồm hôm nay và 6 ngày kế tiếp. Chart 1 thể hiện lượng xuất; chart 2 thể hiện lượng nhập riêng mỗi ngày. Model giữ số thực nội bộ; giao diện làm tròn để hiển thị, lượng nhập làm tròn lên sau khi cộng nhu cầu.
+
+```text
+xuất còn lại hôm nay = max(0, dự báo cả ngày − đã xuất hôm nay)
+nhập lũy kế(d) = ceil(max(0, tổng xuất còn lại đến d + tồn an toàn − tồn hiện tại))
+nhập riêng(d) = nhập lũy kế(d) − nhập lũy kế(d−1)
+```
+
+Mặc định tồn an toàn là 0. Có thể cấu hình bằng bảng `demand_policy` theo kho/sản phẩm. Giai đoạn này giả định hàng bổ sung nhận trong ngày; chưa có đơn mua đang về hoặc thời gian giao hàng. Nhập thực tế đã nằm trong tồn hiện tại, không cộng lại.
+
+Hai danh sách cảnh báo lấy tất cả sản phẩm theo bộ lọc kho. Tổng tuần bao gồm hôm nay; không cộng hai tổng với nhau. Tồn chưa phân bổ hoặc dự báo thiếu/cũ có trạng thái riêng, không bị biến thành đề xuất nhập 0. Backend tính lại theo tồn hiện tại trên mỗi lần tải, dashboard làm mới mỗi 15 giây.
+
+## API
+
+Các API người dùng yêu cầu JWT ADMIN/MANAGER:
+
+| API | Chức năng |
 |---|---|
-| `GET /api/demand/catalog` | ADMIN/MANAGER; danh mục cặp kho/sản phẩm đang được gán |
-| `POST /api/demand/demo-jobs` | ADMIN/MANAGER; tạo job, HTTP 202; không nhận ID do browser tự cung cấp |
-| `GET /api/demand/jobs/{uuid}` | ADMIN/MANAGER; trạng thái QUEUED/RUNNING/SUCCEEDED/FAILED/INTERRUPTED |
-| `GET /api/demand/forecasts` | ADMIN/MANAGER; run thành công gần nhất, history, forecasts, metrics |
+| `GET /api/demand/catalog` | Cặp kho/sản phẩm từ kệ, tồn và chuỗi lịch sử |
+| `POST /api/demand/forecast-jobs` | Tạo job PREDICT, trả HTTP 202 |
+| `GET /api/demand/jobs/{uuid}` | Trạng thái worker |
+| `GET /api/demand/forecasts` | Run dự báo công bố gần nhất |
+| `GET /api/demand/replenishment` | Tồn, lượng nhập từng ngày, cảnh báo ngày/tuần và trạng thái dữ liệu |
+| `GET /api/demand/status` | Các job gần nhất và lịch train tiếp theo |
 
-Python dùng `X-Service-Token` cho cả health và API. Chạy `uvicorn` với **1 worker**: local bind loopback, Docker bind 0.0.0.0:8091 trong mạng Compose và không publish cổng ML. Tác vụ chạy bằng executor riêng nên API không chờ train xong. Tối đa 64 cặp; các truy cập đồng thời có cùng request dùng chung job, request khác nhận 409. Kết quả lỗi không thay thế run tốt trước đó. Nếu Python bị tắt khi job đang chạy, trạng thái được đọc là `INTERRUPTED`; mở lại trang hoặc bấm cập nhật để chạy lại.
+Python nội bộ dùng `X-Service-Token`: `GET /health`, `POST /jobs`, `GET /jobs/{uuid}`, `GET /forecasts/latest`. Request job gồm `jobId`, `action=TRAIN/PREDICT` và snapshot chứa `pairs,rows,dataCutoff,dataSource,datasetId`. Endpoint demo tự sinh lịch sử đã được thay thế.
 
-Mỗi job sinh dữ liệu kết thúc vào hôm qua theo UTC+7, ghi `daily.csv` và dự báo vào `AI/demand/runtime/runs/<uuid>/`. Dữ liệu của cùng một ngày/ID/seed không đổi khi cửa sổ lịch sử dịch chuyển. Chỉ job huấn luyện mới tạo `artifacts/model.joblib` và báo cáo đánh giá; job dự đoán đọc trực tiếp artifact của lần huấn luyện gần nhất và dùng lịch sử mới.
-
-Con trỏ `active.json` lưu riêng run kết quả và run mô hình, cùng `trainedAt` (UTC) và seed. Tuổi mô hình tính từ thời điểm hoàn thành huấn luyện, không tính từ ngày dữ liệu hoặc lần dự đoán gần nhất. Restart service vẫn giữ chu kỳ. Đủ 7 × 24 giờ, **lần truy cập tiếp theo** kích hoạt huấn luyện lại; không có lịch chạy nền khi không ai truy cập. Thiếu artifact hoặc run cũ chưa có metadata thì huấn luyện khởi tạo. CLI `demand_model.py train` vẫn là lệnh huấn luyện thủ công, không áp dụng lịch service.
-
-`modelTrainedAt`, `nextTrainingAt` và `modelAction` (`TRAINED`/`REUSED`) được trả trong kết quả. Metrics vẫn thuộc lần train/test gần nhất. Cặp kho/SKU mới có đủ 90 ngày lịch sử dùng LightGBM chung; thiếu lịch sử trả INSUFFICIENT_DATA. Seed khác bị từ chối trong job nếu mô hình chưa đến hạn (dashboard luôn dùng seed 42).
-
-Con trỏ chỉ cập nhật sau khi kết quả hoàn chỉnh; lưu file tạm rồi rename khi công bố. Huấn luyện/dự đoán lỗi vẫn giữ kết quả và mô hình trước đó. Runtime không được commit; chưa có chính sách tự xóa run cũ. Không xóa run mô hình mà `active.json.model.runId` đang tham chiếu.
-
-## Mô hình và giới hạn
-
-Docker dùng Python 3.12 trong image và volume tại `/app/runtime`; xem [Docker](docker.md).
-Image hiện không đóng gói model từ runtime local. Volume mới cần train lần đầu.
-Chế độ chỉ suy luận từ joblib cố định/tắt tự train mới là đề xuất, chưa có biến
-`DEMAND_TRAINING_ENABLED` trong code. Giữ cùng phiên bản dependency khi chuyển artifact.
-
-- LightGBM Poisson và L1, mỗi mô hình 200 cây, học chung các kho/SKU; so với trung bình 28 ngày, seasonal naive và trung bình theo thứ trong 4 tuần gần nhất.
-- Dự báo trực tiếp horizon 1–14, đặc trưng chỉ đến hết ngày gốc.
-- 18 tháng train ban đầu, 3 cửa sổ validation theo tháng với tập train mở rộng; phần còn lại là test độc lập. Chọn riêng LightGBM Poisson hoặc L1 cho từng kho/SKU theo MAE validation, kể cả khi baseline tốt hơn. Baseline chỉ dùng đối chiếu báo cáo, không dùng xuất dự báo. Chuỗi mới có đủ 90 ngày dùng mô hình chung; ít hơn 90 ngày trả INSUFFICIENT_DATA. Báo cáo thêm sai số tổng lượng xuất 7/14 ngày.
-- Đặc trưng chỉ lấy lịch sử đến ngày gốc và lịch của ngày đích; gồm lượng xuất trễ, trung bình/độ lệch chuẩn/tỷ lệ ngày không xuất 7/28 ngày, thứ, tháng, chu kỳ năm và trung bình cùng thứ. Chưa tích hợp lịch nghỉ lễ.
-- Artifact v3 chỉ chọn LightGBM để xuất dự báo. Khởi động lại Python; lần cập nhật dự báo tiếp theo tự huấn luyện thay model cũ dù chưa đủ 7 ngày. Kết quả cũ được giữ nếu huấn luyện mới thất bại. Nguồn lịch sử và seed nội bộ không thay đổi khi chỉnh nhãn giao diện.
-- Cuối cùng refit artifact triển khai trên toàn bộ dữ liệu; metrics test thuộc model trước refit.
-- Mỗi lần cập nhật tạo một run dự đoán; tái sử dụng joblib và chỉ retrain khi đủ 7 ngày. Chưa query lịch sử xuất thật, chưa tính lượng nhập hoặc tạo đơn mua hàng.
-- CSV REAL offline dùng cùng khóa UUID và data_source rõ ràng; cần adapter từ nghiệp vụ nhập/xuất sau khi nghiệp vụ và schema được thống nhất.
-- Kết quả mô phỏng không chứng minh độ chính xác trên nhu cầu thực tế. Không dùng kết quả này tự động đặt hàng.
+Phiếu `POST /inventory/stock-in`, `stock-out`, `placement-suggestions` yêu cầu `warehouseId`. STAFF được đọc `GET /inventory/warehouses` và `GET /inventory/warehouse-stock` để chọn kho và xem tồn, vẫn không được truy cập module dự báo.
 
 ## Kiểm tra
 
 ```powershell
 .\AI\demand\.venv\Scripts\python.exe -m unittest discover -s AI/demand -p 'test_*.py' -v
-.\AI\demand\.venv\Scripts\python.exe AI/demand/smoke_test.py
+cd backend/iot
+mvn test
 ```
 
-Smoke test dùng danh mục UUID fixture, train model thật, kiểm tra HTTP job và kết quả; không cần database hoặc sửa dữ liệu chương trình.
+Test backend cần datasource hợp lệ cho `IotApplicationTests`. Để kiểm tra migration trên các schema tạm, đặt `MYSQL_TEST_URL`, `MYSQL_TEST_USER`, `MYSQL_TEST_PASSWORD` trỏ đến máy MySQL test có quyền tạo/xóa schema. `MySqlBootstrapTest` chỉ xóa schema ngẫu nhiên do chính test tạo, không xóa DB trong URL. Test kiểm tra cả DB mới và nâng cấp từ V11.
 
-Backend:
+Để xuất snapshot từ DB test, đặt thêm `DEMAND_SNAPSHOT_OUTPUT` là đường dẫn tuyệt đối trước khi chạy `MySqlBootstrapTest`. Sau đó train kiểm chứng bằng worker HTTP trong tiến trình:
 
 ```powershell
-cd backend/iot
-mvn '-Dtest=DemandForecastServiceTest,DemandForecastAuthorizationTest' test
+.\AI\demand\.venv\Scripts\python.exe AI/demand/smoke_test.py --snapshot AI/demand/runtime/integration/snapshot.json
 ```
 
-Tùy chọn kiểm tra Java gọi Python thật: bật Python service trên một port/thư mục runtime thử nghiệm, đặt `DEMAND_LIVE_TEST_URL` trỏ tới service đó và `DEMAND_SERVICE_TOKEN` tương ứng, chạy `mvn '-Dtest=DemandForecastLiveTest' test`. Test sử dụng repository mock và train thật; không kết nối DB nhưng sẽ công bố run fixture trên service thử nghiệm đó.
+Smoke test lưu model vào `runtime/integration-worker` và chứng minh job PREDICT tái sử dụng artifact. Test Java xuyên suốt `DemandForecastLiveTest` yêu cầu một DB test đã migrate, worker Python riêng tại `DEMAND_LIVE_TEST_URL` và token `DEMAND_SERVICE_TOKEN`; test tạo train thật và kiểm tra lượng nhập/cảnh báo.

@@ -45,6 +45,12 @@ public class InventoryController {
         return ResponseEntity.ok(inventoryService.getHistory());
     }
 
+    @GetMapping("/warehouse-stock")
+    public List<java.util.Map<String,Object>> warehouseStock() { return inventoryService.getWarehouseStock(); }
+
+    @GetMapping("/warehouses")
+    public List<java.util.Map<String,Object>> warehouses() { return inventoryService.getWarehouses(); }
+
     @GetMapping("/used-skus")
     public ResponseEntity<List<String>> usedSkus() {
         return ResponseEntity.ok(inventoryService.getUsedSkus());

@@ -8,7 +8,7 @@ import pandas as pd
 import sklearn
 import lightgbm
 
-from demand_model import load_data, samples, metrics, forecast, FORMAT_VERSION, select_methods, METHODS, fit
+from demand_model import load_data, samples, metrics, forecast, FORMAT_VERSION, select_methods, METHODS, fit, apply_selection
 
 
 def fixture(days=120, sku='SIM_A'):
@@ -18,6 +18,11 @@ def fixture(days=120, sku='SIM_A'):
 
 
 class DemandTests(unittest.TestCase):
+    def test_new_series_in_test_uses_global_validation_selection(self):
+        scored = pd.DataFrame([{'warehouse_id': 'new-warehouse', 'product_id': 'new-product',
+                                'lightgbm_poisson': 8.0, 'lightgbm_l1': 9.0}])
+        self.assertEqual(apply_selection(scored, {}, 'lightgbm_l1').selected.iloc[0], 9.0)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -86,7 +91,7 @@ class DemandTests(unittest.TestCase):
         self.assertTrue(result.status.eq('OK').all())
         self.assertTrue(result.method.eq('lightgbm_poisson').all())
         self.assertTrue(result.predicted_quantity.ge(0).all())
-        self.assertTrue(result.predicted_quantity.mod(1).eq(0).all())
+        self.assertTrue(np.isfinite(result.predicted_quantity).all())
         self.assertEqual(result.target_date.iloc[0], '2025-05-01')
         self.assertEqual(result.target_date.iloc[-1], '2025-05-14')
 

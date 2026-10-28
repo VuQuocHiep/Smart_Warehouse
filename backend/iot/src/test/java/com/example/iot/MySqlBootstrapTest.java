@@ -6,7 +6,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -18,8 +19,56 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Uses a unique disposable schema; never cleans the database in MYSQL_TEST_URL. */
 @EnabledIfEnvironmentVariable(named = "MYSQL_TEST_URL", matches = "jdbc:mysql:.*")
 class MySqlBootstrapTest {
-    @Test
-    void freshDatabaseMigratesValidatesEntitiesAndRestartsWithoutChanges() throws Exception {
+    @org.junit.jupiter.api.Test
+    void v14NormalizesExistingCatalogWithoutChangingStockOrUserEdits() throws Exception {
+        String serverUrl=System.getenv("MYSQL_TEST_URL"),username=System.getenv("MYSQL_TEST_USER"),password=System.getenv().getOrDefault("MYSQL_TEST_PASSWORD","");
+        String schema="catalog_label_test_"+UUID.randomUUID().toString().replace("-","");
+        URI server=URI.create(serverUrl.substring("jdbc:".length()));
+        String url="jdbc:"+new URI(server.getScheme(),server.getAuthority(),"/"+schema,server.getQuery(),null);
+        try(var connection=DriverManager.getConnection(serverUrl,username,password);var statement=connection.createStatement()) {
+            statement.execute("CREATE DATABASE `"+schema+"` CHARACTER SET utf8mb4");
+            try {
+                Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").target("13").load().migrate();
+                var jdbc=new org.springframework.jdbc.core.JdbcTemplate(new DriverManagerDataSource(url,username,password));
+                jdbc.update("INSERT INTO product (product_id,sku,name,category,description,unit_weight,unit,deleted) VALUES ('old-sim','SIM_SKU001','Demo product 01','SIMULATION','stable',100,'ITEM',0),('user-p','HH009','User product','Custom','Keep',100,'ITEM',0)");
+                jdbc.update("UPDATE product SET name='Trà xanh',category='Đồ uống',description='Thông tin riêng' WHERE product_id='d13-p02'");
+                jdbc.update("INSERT INTO monitored_shelf (id,name,warehouse_id,device_code,capacity) SELECT 'old-shelf','SIM_SHELF_001',warehouse_id,'old-device',100 FROM warehouse WHERE monitoring_slot=1");
+                long stock=jdbc.queryForObject("SELECT SUM(quantity) FROM warehouse_inventory",Long.class);
+                long transactions=jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction",Long.class);
+                Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").load().migrate();
+                assertEquals(13,jdbc.queryForObject("SELECT COUNT(*) FROM product_sku_alias",Integer.class));
+                assertEquals("Hàng hóa 001",jdbc.queryForObject("SELECT name FROM product WHERE product_id='old-sim'",String.class));
+                assertEquals("Trà xanh",jdbc.queryForObject("SELECT name FROM product WHERE product_id='d13-p02'",String.class));
+                assertEquals("Thông tin riêng",jdbc.queryForObject("SELECT description FROM product WHERE product_id='d13-p02'",String.class));
+                assertEquals("HH009",jdbc.queryForObject("SELECT sku FROM product WHERE product_id='user-p'",String.class));
+                assertEquals("Kệ hàng 001",jdbc.queryForObject("SELECT name FROM monitored_shelf WHERE id='old-shelf'",String.class));
+                assertEquals(stock,jdbc.queryForObject("SELECT SUM(quantity) FROM warehouse_inventory",Long.class));
+                assertEquals(transactions,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE data_source='SIMULATED'",Long.class));
+            } finally { statement.execute("DROP DATABASE `"+schema+"`"); }
+        }
+    }
+    @org.junit.jupiter.api.Test
+    void conflictingSeedRollsBackAllV13Data() throws Exception {
+        String serverUrl=System.getenv("MYSQL_TEST_URL"),username=System.getenv("MYSQL_TEST_USER"),password=System.getenv().getOrDefault("MYSQL_TEST_PASSWORD","");
+        String schema="seed_failure_test_"+UUID.randomUUID().toString().replace("-","");
+        URI server=URI.create(serverUrl.substring("jdbc:".length()));
+        String url="jdbc:"+new URI(server.getScheme(),server.getAuthority(),"/"+schema,server.getQuery(),null);
+        try(var connection=DriverManager.getConnection(serverUrl,username,password);var statement=connection.createStatement()) {
+            statement.execute("CREATE DATABASE `"+schema+"` CHARACTER SET utf8mb4");
+            try {
+                Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").target("12").load().migrate();
+                var jdbc=new org.springframework.jdbc.core.JdbcTemplate(new DriverManagerDataSource(url,username,password));
+                jdbc.update("INSERT INTO product (product_id,sku,name,unit_weight,unit,deleted) VALUES ('conflict','DEMAND_V13_001','Existing',100,'ITEM',0)");
+                org.junit.jupiter.api.Assertions.assertThrows(Exception.class,() -> Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").load().migrate());
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM demand_seed_batch",Integer.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction",Integer.class));
+                assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM product",Integer.class));
+            } finally { statement.execute("DROP DATABASE `"+schema+"`"); }
+        }
+    }
+    @ParameterizedTest
+    @ValueSource(booleans={false,true})
+    void freshDatabaseMigratesValidatesEntitiesAndRestartsWithoutChanges(boolean upgrade) throws Exception {
         String serverUrl = System.getenv("MYSQL_TEST_URL");
         String username = System.getenv("MYSQL_TEST_USER");
         String password = System.getenv().getOrDefault("MYSQL_TEST_PASSWORD", "");
@@ -32,6 +81,12 @@ class MySqlBootstrapTest {
              var statement = connection.createStatement()) {
             statement.execute("CREATE DATABASE `" + schema + "` CHARACTER SET utf8mb4");
             try {
+                if(upgrade) {
+                    Flyway.configure().dataSource(databaseUrl,username,password).locations("classpath:db/migration").target("11").load().migrate();
+                    statement.execute("INSERT INTO `"+schema+"`.product (product_id,sku,name,unit_weight,unit,deleted,created_at,updated_at) VALUES ('legacy-p','LEGACY','Legacy',100,'ITEM',0,UTC_TIMESTAMP(),UTC_TIMESTAMP())");
+                    statement.execute("INSERT INTO `"+schema+"`.inventory VALUES ('legacy-i','legacy-p',5,UTC_TIMESTAMP())");
+                    statement.execute("INSERT INTO `"+schema+"`.stock_transaction (transaction_id,product_id,type,quantity,stock_after,created_at) VALUES ('legacy-t','legacy-p','IN',5,5,UTC_TIMESTAMP())");
+                }
                 Flyway flyway = Flyway.configure()
                         .dataSource(databaseUrl, username, password)
                         .locations("classpath:db/migration")
@@ -60,9 +115,53 @@ class MySqlBootstrapTest {
                     assertEquals(4, rows.getInt(1));
                 }
                 assertEquals(0, flyway.migrate().migrationsExecuted);
+                var jdbc=new org.springframework.jdbc.core.JdbcTemplate(new DriverManagerDataSource(databaseUrl,username,password));
+                assertEquals(30920,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE seed_batch_id='DEMAND_V13'",Integer.class));
+                assertEquals(24,jdbc.queryForObject("SELECT COUNT(*) FROM demand_series",Integer.class));
+                assertEquals(12,jdbc.queryForObject("SELECT COUNT(*) FROM product_sku_alias",Integer.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM product WHERE name LIKE 'Demo%' OR category='DEMAND_DEMO' OR sku LIKE 'DEMAND_V13_%'",Integer.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE note='SIMULATED fixture' OR created_by='DEMAND_V13'",Integer.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM warehouse_inventory wi WHERE wi.quantity<>(SELECT SUM(CASE WHEN t.type='IN' THEN t.quantity ELSE -t.quantity END) FROM stock_transaction t WHERE t.warehouse_id=wi.warehouse_id AND t.product_id=wi.product_id)",Integer.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM inventory i WHERE i.product_id LIKE 'd13-p%' AND i.quantity<>(SELECT SUM(wi.quantity) FROM warehouse_inventory wi WHERE wi.product_id=i.product_id)",Integer.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM shelf_stock ss JOIN monitored_shelf s ON s.id=ss.shelf_id WHERE ss.quantity>s.capacity",Integer.class));
+                var data=new com.example.iot.service.DemandDataService(jdbc,"SIMULATED");
+                var snapshot=data.snapshot();
+                assertEquals(24,snapshot.pairs().size());assertEquals(24*730,snapshot.rows().size());
+                assertEquals(24,data.balances().size());
+                assertTrue(data.balances().stream().allMatch(r -> ((Number)r.get("reconciled")).intValue()==1));
+                if(upgrade) {
+                    assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE transaction_id='legacy-t' AND warehouse_id IS NULL",Integer.class));
+                    assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM warehouse_inventory WHERE product_id='legacy-p'",Integer.class));
+                }
+                String output=System.getenv("DEMAND_SNAPSHOT_OUTPUT");
+                if(output!=null&&!upgrade) {
+                    var path=java.nio.file.Path.of(output);java.nio.file.Files.createDirectories(path.getParent());
+                    java.nio.file.Files.writeString(path,tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(snapshot));
+                }
+                schedulerUsesPersistentPeriodAndDoesNotDuplicate(jdbc,snapshot);
             } finally {
                 statement.execute("DROP DATABASE `" + schema + "`");
             }
         }
+    }
+
+    void schedulerUsesPersistentPeriodAndDoesNotDuplicate(org.springframework.jdbc.core.JdbcTemplate jdbc,
+            com.example.iot.service.DemandDataService.Snapshot snapshot) {
+        var worker=org.mockito.Mockito.mock(com.example.iot.service.DemandForecastService.class);
+        var data=org.mockito.Mockito.mock(com.example.iot.service.DemandDataService.class);
+        org.mockito.Mockito.when(data.snapshot()).thenReturn(snapshot);
+        org.mockito.Mockito.when(worker.enabled()).thenReturn(true);
+        org.mockito.Mockito.when(worker.health()).thenReturn(Map.of("modelReady",true,"datasetId",snapshot.datasetId()));
+        org.mockito.Mockito.when(worker.job(org.mockito.ArgumentMatchers.any())).thenThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
+        org.mockito.Mockito.when(worker.submit(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.eq("TRAIN"),org.mockito.ArgumentMatchers.eq(snapshot))).thenReturn(Map.of("status","QUEUED"));
+        var jobs=new com.example.iot.service.DemandJobService(jdbc,data,worker);
+        jobs.tick();
+        org.mockito.Mockito.verify(worker,org.mockito.Mockito.times(1)).submit(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.eq("TRAIN"),org.mockito.ArgumentMatchers.eq(snapshot));
+        org.mockito.Mockito.doReturn("{\"status\":\"SUCCEEDED\",\"modelVersion\":\"fixture\"}").when(worker).job(org.mockito.ArgumentMatchers.any());
+        jobs.tick();
+        org.mockito.Mockito.when(worker.latest()).thenReturn("{\"forecastDate\":\""+java.time.LocalDate.now(com.example.iot.service.DemandDataService.ZONE)+"\"}");
+        new com.example.iot.service.DemandJobService(jdbc,data,worker).tick();
+        org.mockito.Mockito.verify(worker,org.mockito.Mockito.times(1)).submit(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.eq("TRAIN"),org.mockito.ArgumentMatchers.eq(snapshot));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM demand_job WHERE status='SUCCEEDED'",Integer.class));
     }
 }

@@ -169,11 +169,11 @@ def select_methods(scored):
     return selections
 
 
-def apply_selection(scored, selections):
+def apply_selection(scored, selections, default='lightgbm_poisson'):
     scored = scored.copy()
     scored['selected'] = np.nan
     for key, group in scored.groupby(KEYS):
-        scored.loc[group.index, 'selected'] = group[selections[key]]
+        scored.loc[group.index, 'selected'] = group[selections.get(key, default)]
     return scored
 
 
@@ -212,12 +212,13 @@ def train(csv_path, output):
         folds.append({'training_targets_before': str(cutoff.date()), 'metrics': fold_report})
     validation_scores = pd.concat(validation_scores, ignore_index=True)
     selections = select_methods(validation_scores)
+    default_method = min(ML_METHODS, key=lambda name: metrics(validation_scores.actual, validation_scores[name])['mae'])
     validation_report = score_report(apply_selection(validation_scores, selections))
     selected = 'per_series'
     print('Validation selected methods per warehouse/SKU. Refitting for untouched test period.', flush=True)
     test_model = fit(history[history.target_date < test_start])
     scored, test_report = evaluate(test_model, test)
-    scored = apply_selection(scored, selections)
+    scored = apply_selection(scored, selections, default_method)
     test_report = score_report(scored)
     by_series = []
     for key, group in scored.groupby(KEYS):
@@ -232,7 +233,7 @@ def train(csv_path, output):
         'trained_at': datetime.now(timezone.utc).isoformat(),
         'format_version': FORMAT_VERSION, 'model_version': version, 'selected_method': selected,
         'selected_methods': selections, 'lightgbm_version': lightgbm.__version__,
-        'default_method': min(ML_METHODS, key=lambda name: validation_report['daily'][name]['mae']),
+        'default_method': default_method,
         'data_cutoff': str(end.date()), 'data_source': source, 'dataset_sha256': digest,
         'sklearn_version': sklearn.__version__, 'features': NUMERIC,
         'known_pairs': sorted(set(map(tuple, history[KEYS].to_numpy())))}
@@ -307,7 +308,7 @@ def forecast(csv_path, model_path, output, as_of=None, horizon=14):
             output_rows.append(dict(zip(KEYS, key)) | {
                 'forecast_date': str((cutoff + pd.Timedelta(days=1)).date()),
                 'target_date': str((cutoff + pd.Timedelta(days=index + 1)).date()),
-                'horizon': index + 1, 'predicted_quantity': round_quantity(prediction[index]) if prediction is not None else None,
+                'horizon': index + 1, 'predicted_quantity': max(0.0, float(prediction[index])) if prediction is not None else None,
                 'method': method, 'status': status, 'model_version': bundle['model_version'],
                 'data_source': bundle['data_source'], 'data_cutoff': str(cutoff.date())})
     if not output_rows:

@@ -18,11 +18,16 @@ class InventoryWeighingTest {
     ProductRepository products = mock(ProductRepository.class);
     ShelfStockRepository shelves = mock(ShelfStockRepository.class);
     ScaleService scale = mock(ScaleService.class);
+    WarehouseRepository warehouses = mock(WarehouseRepository.class);
+    WarehouseStockService warehouseStock = mock(WarehouseStockService.class);
     InventoryService service = new InventoryService(inventory, transactions, products, mock(MonitoredShelfRepository.class),
-            shelves, mock(WarehouseRepository.class), scale);
+            shelves, warehouses, scale, warehouseStock);
     ProductEntity product = ProductEntity.builder().productId("product").sku("SKU").name("Test").unit_weight(100).build();
     @BeforeEach void setup() {
-        when(products.findBySkuAndDeletedFalse("SKU")).thenReturn(Optional.of(product));
+        when(products.findForUpdateBySku("SKU")).thenReturn(Optional.of(product));
+        var warehouse = new WarehouseEntity(); warehouse.setWarehouseId("warehouse");
+        when(warehouses.findById("warehouse")).thenReturn(Optional.of(warehouse));
+        when(warehouseStock.source("warehouse","product")).thenReturn("REAL");
         when(inventory.findByProduct(product)).thenReturn(Optional.of(InventoryEntity.builder().product(product).quantity(10).build()));
         when(shelves.findByProductIdOrderByQuantityDesc("product")).thenReturn(List.of());
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("operator", null, List.of()));
@@ -30,7 +35,7 @@ class InventoryWeighingTest {
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
     StockRequest request(String id, boolean required) {
         var item = new StockRequest.Item(); item.setSku("SKU"); item.setQuantity(2); item.setScaleTicketId(id); item.setWeighRequired(required);
-        var request = new StockRequest(); request.setItems(List.of(item)); return request;
+        var request = new StockRequest(); request.setWarehouseId("warehouse"); request.setItems(List.of(item)); return request;
     }
     @Test void requiredWeighingCannotBeOmitted() {
         assertThrows(ResponseStatusException.class, () -> service.stockIn(request(null, true)));

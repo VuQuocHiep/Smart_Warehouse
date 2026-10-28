@@ -112,6 +112,7 @@
 
 .overview-workflow,
 .overview-panel {
+  min-width: 0;
   padding: 20px;
 }
 
@@ -256,7 +257,7 @@
 }
 
 .overview-action-list article > svg,
-.overview-warehouse-network article > span {
+.overview-warehouse-network .overview-warehouse-icon {
   display: grid;
   place-items: center;
   flex: 0 0 38px;
@@ -273,7 +274,7 @@
   flex: 1;
 }
 
-.overview-warehouse-network article > span {
+.overview-warehouse-network .overview-warehouse-icon {
   color: #0f766e;
   background: #ccfbf1;
 }
@@ -281,6 +282,30 @@
 .overview-warehouse-network em {
   display: block;
   margin-top: 4px;
+}
+
+.overview-warehouse-network article {
+  min-width: 0;
+}
+
+.overview-warehouse-network strong,
+.overview-warehouse-network em {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.overview-warehouse-network .overview-warehouse-status {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .overview-role-grid {

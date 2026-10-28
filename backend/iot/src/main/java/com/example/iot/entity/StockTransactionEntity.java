@@ -2,7 +2,6 @@ package com.example.iot.entity;
 
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -53,6 +52,12 @@ public class StockTransactionEntity {
     @Column(name = "stock_after", nullable = false)
     private int stockAfter;
 
+    private String warehouseId;
+    private Integer warehouseStockAfter;
+    @Builder.Default
+    private String dataSource = "REAL";
+    private String seedBatchId;
+
     /** Email người thực hiện. */
     @Column(name = "created_by")
     private String createdBy;
@@ -64,7 +69,11 @@ public class StockTransactionEntity {
     @JoinColumn(name = "scale_ticket_id", unique = true)
     private ScaleTicket weighing;
 
-    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @jakarta.persistence.PrePersist
+    void timestamp() {
+        if (createdAt == null) createdAt = LocalDateTime.now(java.time.ZoneOffset.UTC);
+    }
 }

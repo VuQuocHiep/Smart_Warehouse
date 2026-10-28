@@ -23,7 +23,9 @@ class DemandForecastAuthorizationTest {
     @EnableMethodSecurity
     static class Config {
         @Bean DemandForecastService service() { return mock(DemandForecastService.class); }
-        @Bean DemandForecastController controller(DemandForecastService service) { return new DemandForecastController(service); }
+        @Bean com.example.iot.service.DemandJobService jobs() { return mock(com.example.iot.service.DemandJobService.class); }
+        @Bean com.example.iot.service.ReplenishmentService replenishment() { return mock(com.example.iot.service.ReplenishmentService.class); }
+        @Bean DemandForecastController controller(DemandForecastService service,com.example.iot.service.DemandJobService jobs,com.example.iot.service.ReplenishmentService replenishment) { return new DemandForecastController(service,jobs,replenishment); }
     }
     @Autowired DemandForecastController controller;
 
@@ -31,6 +33,8 @@ class DemandForecastAuthorizationTest {
     void staffCannotReadForecastsOrStartTraining() {
         assertThrows(AccessDeniedException.class, controller::forecasts);
         assertThrows(AccessDeniedException.class, controller::start);
+        assertThrows(AccessDeniedException.class, controller::replenishment);
+        assertThrows(AccessDeniedException.class, controller::status);
     }
 
     @Test @WithMockUser(roles = "MANAGER")

@@ -1,33 +1,54 @@
 package com.example.iot.service;
 
+import java.util.*;
+import java.time.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import tools.jackson.databind.json.JsonMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Optional actual Java HTTP client -> Python model test. No application DB access. */
-@EnabledIfEnvironmentVariable(named = "DEMAND_LIVE_TEST_URL", matches = ".+")
+/** Optional end-to-end test against a migrated disposable DB and a dedicated Python worker. */
+@EnabledIfEnvironmentVariable(named="DEMAND_LIVE_TEST_URL",matches=".+")
 class DemandForecastLiveTest {
-    @Test void trainsThroughRealPythonServiceUsingUuidCatalog() throws Exception {
-        var fixture = new DemandForecastServiceTest();
-        fixture.catalog();
-        var service = new DemandForecastService(fixture.warehouses, fixture.products, fixture.shelves,
-                System.getenv("DEMAND_LIVE_TEST_URL"), System.getenv("DEMAND_SERVICE_TOKEN"), true);
-        var mapper = JsonMapper.builder().build();
-        var started = mapper.readTree(service.startDemo());
-        var id = java.util.UUID.fromString(started.get("jobId").asString());
-        String status = "";
-        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(120).toNanos();
-        while (System.nanoTime() < deadline) {
-            status = mapper.readTree(service.job(id)).get("status").asString();
-            if (status.equals("SUCCEEDED") || status.equals("FAILED")) break;
+    @Test @SuppressWarnings("unchecked")
+    void databaseToJavaHttpToPythonJoblibToReplenishment() throws Exception {
+        var jdbc=new JdbcTemplate(new DriverManagerDataSource(System.getenv("MYSQL_TEST_URL"),System.getenv("MYSQL_TEST_USER"),System.getenv("MYSQL_TEST_PASSWORD")));
+        var data=new DemandDataService(jdbc,"SIMULATED");
+        var worker=new DemandForecastService(data,System.getenv("DEMAND_LIVE_TEST_URL"),System.getenv("DEMAND_SERVICE_TOKEN"),true);
+        var snapshot=data.snapshot();
+        String id=UUID.randomUUID().toString();
+        worker.submit(id,"TRAIN",snapshot);
+        Map<String,Object> status=Map.of();
+        long deadline=System.nanoTime()+Duration.ofMinutes(5).toNanos();
+        while(System.nanoTime()<deadline) {
+            status=DemandForecastService.parse(worker.job(UUID.fromString(id)));
+            if(Set.of("SUCCEEDED","FAILED","INTERRUPTED").contains(status.get("status"))) break;
+            Thread.sleep(500);
+        }
+        assertEquals("SUCCEEDED",status.get("status"),status.toString());
+        var result=DemandForecastService.parse(worker.latest());
+        assertEquals(336,((List<?>)result.get("forecasts")).size());
+        var replenishment=new ReplenishmentService(worker,data).latest();
+        assertFalse(((List<?>)replenishment.get("todayAlerts")).isEmpty());
+        assertFalse(((List<?>)replenishment.get("weekAlerts")).isEmpty());
+        for(var item:(List<Map<String,Object>>)replenishment.get("items")) {
+            if(!"OK".equals(item.get("status"))) continue;
+            var days=(List<Map<String,Object>>)item.get("days");
+            assertEquals(7,days.size());
+            assertEquals(((Number)item.get("requiredWeek")).longValue(),days.stream().mapToLong(d -> ((Number)d.get("required_quantity")).longValue()).sum());
+        }
+        String modelRun=Objects.toString(result.get("modelTrainedAt"));
+        String predictId=UUID.randomUUID().toString();
+        worker.submit(predictId,"PREDICT",snapshot);
+        deadline=System.nanoTime()+Duration.ofMinutes(1).toNanos();
+        while(System.nanoTime()<deadline) {
+            status=DemandForecastService.parse(worker.job(UUID.fromString(predictId)));
+            if(Set.of("SUCCEEDED","FAILED").contains(status.get("status"))) break;
             Thread.sleep(250);
         }
-        assertEquals("SUCCEEDED", status);
-        var result = mapper.readTree(service.latest());
-        assertEquals("SIMULATED", result.get("dataSource").asString());
-        assertEquals(14, result.get("forecasts").size());
-        assertEquals("w-uuid", result.get("forecasts").get(0).get("warehouse_id").asString());
-        assertEquals("p-uuid", result.get("forecasts").get(0).get("product_id").asString());
+        assertEquals("SUCCEEDED",status.get("status"));
+        result=DemandForecastService.parse(worker.latest());
+        assertEquals("REUSED",result.get("modelAction"));assertEquals(modelRun,result.get("modelTrainedAt"));
     }
 }

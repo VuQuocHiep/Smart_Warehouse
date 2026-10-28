@@ -1,4 +1,4 @@
-"""Internal demand service. Run one Uvicorn worker on loopback."""
+"""Internal DB-backed demand worker. Spring owns scheduling; run one Uvicorn worker."""
 import hashlib
 import json
 import logging
@@ -7,17 +7,16 @@ import secrets
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
-import numpy as np
+import lightgbm
 import pandas as pd
+import sklearn
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, model_validator
-
-from demand_model import train, forecast, FORMAT_VERSION, round_quantity
-import lightgbm
+from demand_model import train, forecast, load_data, FORMAT_VERSION
 
 LOGGER = logging.getLogger(__name__)
 ROOT = Path(os.getenv('DEMAND_DATA_DIR', Path(__file__).resolve().parent / 'runtime')).resolve()
@@ -25,27 +24,43 @@ TOKEN = os.getenv('DEMAND_SERVICE_TOKEN', '')
 LOCK = threading.Lock()
 EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix='demand')
 ACTIVE_JOB = None
-RETRAIN_INTERVAL = timedelta(days=7)
+VN = timezone(timedelta(hours=7))
 
 
 def utc_now():
     return datetime.now(timezone.utc)
 
 
+def read_json(path):
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix('.tmp')
+    temporary.write_text(json.dumps(value, ensure_ascii=False, allow_nan=False), encoding='utf-8')
+    temporary.replace(path)
+
+
 def active_model():
     pointer = ROOT / 'active.json'
-    if not pointer.exists():
-        return None
-    # Old runs without training metadata are migrated by training once.
-    return read_json(pointer).get('model')
+    return read_json(pointer).get('model') if pointer.exists() else None
 
 
-def model_due(model, now):
-    return (model is None or
-            model.get('formatVersion') != FORMAT_VERSION or
-            model.get('lightgbmVersion') != lightgbm.__version__ or
-            now >= datetime.fromisoformat(model['trainedAt']) + RETRAIN_INTERVAL or
-            not (ROOT / 'runs' / model['runId'] / 'artifacts/model.joblib').is_file())
+def model_ready(model):
+    return bool(model and model.get('formatVersion') == FORMAT_VERSION
+                and model.get('lightgbmVersion') == lightgbm.__version__
+                and model.get('sklearnVersion') == sklearn.__version__
+                and model.get('datasetId')
+                and (ROOT / 'runs' / model['runId'] / 'artifacts/model.joblib').is_file())
+
+
+def next_training_at():
+    now = utc_now().astimezone(VN)
+    monday = (now - timedelta(days=now.weekday())).replace(hour=5, minute=0, second=0, microsecond=0)
+    if monday <= now:
+        monday += timedelta(days=7)
+    return monday.isoformat()
 
 
 def authorize(x_service_token: Annotated[str, Header()] = ''):
@@ -55,7 +70,7 @@ def authorize(x_service_token: Annotated[str, Header()] = ''):
         raise HTTPException(401, 'Invalid service token')
 
 
-app = FastAPI(title='Warehouse demand forecasting', dependencies=[Depends(authorize)])
+app = FastAPI(title='Warehouse demand worker', dependencies=[Depends(authorize)])
 
 
 class Pair(BaseModel):
@@ -66,100 +81,93 @@ class Pair(BaseModel):
     productName: str = Field(min_length=1, max_length=255)
 
 
-class DemoRequest(BaseModel):
+class Observation(BaseModel):
+    date: date
+    warehouse_id: str = Field(min_length=1, max_length=255)
+    product_id: str = Field(min_length=1, max_length=255)
+    export_quantity: int = Field(ge=0)
+    data_quality: Literal['COMPLETE']
+    data_source: Literal['REAL', 'SIMULATED']
+
+
+class Snapshot(BaseModel):
     pairs: list[Pair] = Field(min_length=1, max_length=64)
-    seed: int = Field(default=42, ge=0, le=2147483647)
+    rows: list[Observation] = Field(min_length=1, max_length=500000)
+    dataCutoff: date
+    dataSource: Literal['REAL', 'SIMULATED']
+    datasetId: str = Field(min_length=1, max_length=128, pattern=r'^[A-Za-z0-9_-]+$')
 
     @model_validator(mode='after')
-    def unique_pairs(self):
-        keys = {(pair.warehouseId, pair.productId) for pair in self.pairs}
-        if len(keys) != len(self.pairs):
-            raise ValueError('Duplicate warehouse/product pairs')
+    def validate_snapshot(self):
+        pairs = {(p.warehouseId, p.productId) for p in self.pairs}
+        if len(pairs) != len(self.pairs):
+            raise ValueError('Duplicate pairs')
+        if self.dataCutoff >= utc_now().astimezone(VN).date():
+            raise ValueError('Only completed days may be used')
+        seen = set()
+        for row in self.rows:
+            key = (row.warehouse_id, row.product_id)
+            identity = (*key, row.date)
+            if key not in pairs or row.date > self.dataCutoff or row.data_source != self.dataSource or identity in seen:
+                raise ValueError('Snapshot contains unknown pairs, future dates, mixed sources or duplicate days')
+            seen.add(identity)
+        if {key[:2] for key in seen} != pairs:
+            raise ValueError('Every pair needs observations')
         return self
 
 
-def write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix('.tmp')
-    temporary.write_text(json.dumps(value, ensure_ascii=False, allow_nan=False), encoding='utf-8')
-    temporary.replace(path)
+class JobRequest(BaseModel):
+    jobId: uuid.UUID
+    action: Literal['TRAIN', 'PREDICT']
+    snapshot: Snapshot
 
 
-def read_json(path):
-    return json.loads(path.read_text(encoding='utf-8'))
-
-
-def simulate(request, cutoff):
-    dates = pd.date_range(pd.Timestamp(cutoff) - pd.Timedelta(days=729), cutoff)
-    rows = []
-    for pair in sorted(request.pairs, key=lambda p: (p.warehouseId, p.productId)):
-        identity = f'{pair.warehouseId}:{pair.productId}:{request.seed}'
-        stable = int.from_bytes(hashlib.sha256(identity.encode()).digest()[:8], 'big')
-        profile = stable % 6
-        base = 12 + stable % 20
-        for day in dates:
-            # A date's observation must not change when the rolling window moves.
-            rng = np.random.default_rng([stable, day.toordinal()])
-            trend = np.clip((day - pd.Timestamp('2025-01-01')).days / 730, 0, 2)
-            multiplier = 1.0
-            if profile == 1:
-                multiplier = [1.4, 1.2, 1, 1, 1.3, .65, .45][day.dayofweek]
-            elif profile == 2:
-                multiplier = .6 + trend
-            elif profile == 3:
-                multiplier = max(.2, 1.5 - .9 * trend)
-            elif profile == 4:
-                multiplier = 1 + .55 * np.sin(2 * np.pi * day.dayofyear / 365.25)
-            mean = base * multiplier
-            quantity = int(rng.negative_binomial(25, 25 / (25 + mean)))
-            if profile == 5:
-                quantity = 0 if rng.random() < .72 else quantity * 3
-            rows.append({'date': str(day.date()), 'warehouse_id': pair.warehouseId,
-                         'product_id': pair.productId, 'export_quantity': quantity,
-                         'data_quality': 'COMPLETE', 'data_source': 'SIMULATED'})
-    return pd.DataFrame(rows)
-
-
-def execute_job(job_id, request, cutoff):
+def execute_job(request):
     global ACTIVE_JOB
+    job_id = str(request.jobId)
     folder = ROOT / 'runs' / job_id
-    status = {'jobId': job_id, 'status': 'RUNNING', 'dataSource': 'SIMULATED', 'dataCutoff': cutoff}
+    snapshot = request.snapshot
+    status = {'jobId': job_id, 'status': 'RUNNING', 'action': request.action,
+              'dataSource': snapshot.dataSource, 'dataCutoff': str(snapshot.dataCutoff)}
     try:
         write_json(folder / 'job.json', status)
-        data = simulate(request, cutoff)
         csv_path = folder / 'daily.csv'
-        data.to_csv(csv_path, index=False)
+        pd.DataFrame([row.model_dump(mode='json') for row in snapshot.rows]).to_csv(csv_path, index=False)
+        load_data(csv_path)  # Validate continuity and values before touching the active model.
         model = active_model()
-        if model and model.get('seed') != request.seed and not model_due(model, utc_now()):
-            raise ValueError('Changing the simulation seed requires waiting for the next training cycle.')
-        if model_due(model, utc_now()):
+        if request.action == 'TRAIN':
             train(csv_path, folder / 'artifacts')
-            model = {'runId': job_id, 'trainedAt': utc_now().isoformat(), 'seed': request.seed,
-                     'formatVersion': FORMAT_VERSION, 'lightgbmVersion': lightgbm.__version__}
-            status['modelAction'] = 'TRAINED'
-        else:
-            forecast(csv_path, ROOT / 'runs' / model['runId'] / 'artifacts/model.joblib',
-                     folder / 'artifacts/forecast_14_days.csv')
-            status['modelAction'] = 'REUSED'
-        predictions = pd.read_csv(folder / 'artifacts' / 'forecast_14_days.csv',
-                               dtype={'warehouse_id': str, 'product_id': str})
+            model = {'runId': job_id, 'trainedAt': utc_now().isoformat(),
+                     'formatVersion': FORMAT_VERSION, 'lightgbmVersion': lightgbm.__version__,
+                     'sklearnVersion': sklearn.__version__, 'datasetId': snapshot.datasetId,
+                     'dataSource': snapshot.dataSource}
+        elif not model_ready(model) or model['datasetId'] != snapshot.datasetId or model['dataSource'] != snapshot.dataSource:
+            raise ValueError('No compatible model; a separate TRAIN job is required')
+        # Explicit cutoff means a bounded fixture cannot silently masquerade as fresh history.
+        forecast(csv_path, ROOT / 'runs' / model['runId'] / 'artifacts/model.joblib',
+                 folder / 'artifacts/forecast_14_days.csv', as_of=str(snapshot.dataCutoff))
+        predictions = pd.read_csv(folder / 'artifacts/forecast_14_days.csv', dtype={'warehouse_id': str, 'product_id': str})
+        predictions = predictions.astype(object).where(pd.notna(predictions), None)
         metrics = read_json(ROOT / 'runs' / model['runId'] / 'artifacts/metrics.json')
-        recent = data.groupby(['warehouse_id', 'product_id'], sort=False).tail(28)
-        result = {'runId': job_id, 'dataSource': 'SIMULATED', 'dataCutoff': cutoff,
-                  'forecastDate': str((pd.Timestamp(cutoff) + pd.Timedelta(days=1)).date()),
-                  'pairs': [pair.model_dump() for pair in request.pairs],
-                  'metrics': metrics, 'history': recent.to_dict(orient='records'),
+        version = metrics['model_version']
+        data = pd.read_csv(csv_path, dtype={'warehouse_id': str, 'product_id': str})
+        digest = hashlib.sha256(csv_path.read_bytes()).hexdigest()
+        metadata = model | {'modelVersion': version, 'dataCutoff': str(snapshot.dataCutoff), 'datasetSha256': digest}
+        write_json(folder / 'artifacts/metadata.json', metadata)
+        result = {'runId': job_id, 'modelVersion': version, 'datasetId': snapshot.datasetId,
+                  'dataSource': snapshot.dataSource, 'dataCutoff': str(snapshot.dataCutoff),
+                  'forecastDate': str(snapshot.dataCutoff + timedelta(days=1)),
+                  'pairs': [p.model_dump() for p in snapshot.pairs], 'metrics': metrics,
+                  'history': data.groupby(['warehouse_id', 'product_id']).tail(28).to_dict(orient='records'),
                   'forecasts': predictions.to_dict(orient='records'),
-                  'modelTrainedAt': model['trainedAt'],
-                  'nextTrainingAt': (datetime.fromisoformat(model['trainedAt']) + RETRAIN_INTERVAL).isoformat(),
-                  'modelAction': status['modelAction']}
+                  'modelTrainedAt': model['trainedAt'], 'nextTrainingAt': next_training_at(),
+                  'modelAction': 'TRAINED' if request.action == 'TRAIN' else 'REUSED'}
         write_json(folder / 'result.json', result)
-        # Publish pointer last; failed training never replaces the prior good run.
         write_json(ROOT / 'active.json', {'runId': job_id, 'model': model})
-        status['status'] = 'SUCCEEDED'
-    except Exception:
+        status.update(status='SUCCEEDED', modelVersion=version)
+    except Exception as ex:
         LOGGER.exception('Demand job failed: %s', job_id)
-        status.update(status='FAILED', message='Forecast job failed. Check demand service logs; previous results are retained.')
+        status.update(status='FAILED', message=str(ex)[:1000])
     finally:
         write_json(folder / 'job.json', status)
         with LOCK:
@@ -168,37 +176,41 @@ def execute_job(job_id, request, cutoff):
 
 @app.get('/health')
 def health():
-    return {'status': 'UP', 'mode': 'SIMULATED', 'maxPairs': 64}
+    model = active_model()
+    return {'status': 'UP', 'mode': 'DATABASE', 'maxPairs': 64,
+            'modelReady': model_ready(model), 'datasetId': model.get('datasetId') if model else None}
 
 
-@app.post('/jobs/demo', status_code=202)
-def demo(request: DemoRequest):
+@app.post('/jobs', status_code=202)
+def submit(request: JobRequest):
     global ACTIVE_JOB
+    job_id = str(request.jobId)
     with LOCK:
+        folder = ROOT / 'runs' / job_id
+        if (folder / 'request.json').exists():
+            if read_json(folder / 'request.json') != request.model_dump(mode='json'):
+                raise HTTPException(409, 'Job ID already belongs to a different request')
+            return job(request.jobId)
         if ACTIVE_JOB is not None:
-            active_folder = ROOT / 'runs' / ACTIVE_JOB
-            request_path = active_folder / 'request.json'
-            if request_path.exists() and read_json(request_path) == request.model_dump():
-                return read_json(active_folder / 'job.json')
-            raise HTTPException(409, 'A training job is already running')
-        job_id = str(uuid.uuid4())
-        cutoff = str(datetime.now(timezone(timedelta(hours=7))).date() - timedelta(days=1))
-        status = {'jobId': job_id, 'status': 'QUEUED', 'dataSource': 'SIMULATED', 'dataCutoff': cutoff}
-        write_json(ROOT / 'runs' / job_id / 'job.json', status)
-        write_json(ROOT / 'runs' / job_id / 'request.json', request.model_dump())
+            raise HTTPException(409, 'A job is already running')
+        status = {'jobId': job_id, 'status': 'QUEUED', 'action': request.action}
+        write_json(folder / 'request.json', request.model_dump(mode='json'))
+        write_json(folder / 'job.json', status)
         ACTIVE_JOB = job_id
-        EXECUTOR.submit(execute_job, job_id, request, cutoff)
-    return status
+        EXECUTOR.submit(execute_job, request)
+        return status
 
 
 @app.get('/jobs/{job_id}')
 def job(job_id: uuid.UUID):
     path = ROOT / 'runs' / str(job_id) / 'job.json'
     if not path.exists():
+        if (path.parent / 'request.json').exists():
+            return {'jobId': str(job_id), 'status': 'INTERRUPTED', 'message': 'Worker stopped before queuing job'}
         raise HTTPException(404, 'Job not found')
     result = read_json(path)
     if result['status'] in ['QUEUED', 'RUNNING'] and ACTIVE_JOB != str(job_id):
-        result.update(status='INTERRUPTED', message='Service restarted; submit a new job.')
+        result.update(status='INTERRUPTED', message='Worker restarted; create a retry attempt')
     return result
 
 
@@ -206,8 +218,7 @@ def job(job_id: uuid.UUID):
 def latest():
     pointer = ROOT / 'active.json'
     if not pointer.exists():
-        return {'dataSource': 'SIMULATED', 'forecasts': [], 'history': [], 'pairs': []}
+        return {'forecasts': [], 'history': [], 'pairs': []}
     result = read_json(ROOT / 'runs' / read_json(pointer)['runId'] / 'result.json')
-    for row in result.get('forecasts', []):
-        row['predicted_quantity'] = round_quantity(row.get('predicted_quantity'))
+    result['nextTrainingAt'] = next_training_at()
     return result

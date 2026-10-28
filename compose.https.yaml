@@ -1,0 +1,9 @@
+# Optional TLS for browser camera access from another device.
+# docker compose -f compose.yaml -f compose.https.yaml up -d --build
+services:
+  frontend:
+    ports:
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./frontend/nginx.https.conf:/etc/nginx/conf.d/https.conf:ro
+      - ${TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro

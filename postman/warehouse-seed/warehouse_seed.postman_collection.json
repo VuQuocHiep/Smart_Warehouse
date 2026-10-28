@@ -1613,12 +1613,12 @@
           ]
         },
         {
-          "name": "02 Start simulated training",
+          "name": "02 Update database forecast",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/api/demand/demo-jobs",
-            "description": "Requires the Python service and DEMAND_SERVICE_ENABLED=true. Generates NEW simulated history; does not import the SQL transaction history."
+            "url": "{{baseUrl}}/api/demand/forecast-jobs",
+            "description": "Requires V13 and a completed initial training job. Runs PREDICT from DB history using the saved joblib; does not generate history."
           },
           "event": [
             {

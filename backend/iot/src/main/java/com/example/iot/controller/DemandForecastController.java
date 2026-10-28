@@ -18,17 +18,25 @@ import org.springframework.security.access.AccessDeniedException;
 @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
 public class DemandForecastController {
     private final DemandForecastService service;
+    private final com.example.iot.service.DemandJobService jobs;
+    private final com.example.iot.service.ReplenishmentService replenishment;
 
     @GetMapping("/catalog")
-    public List<DemandForecastService.Pair> catalog() { return service.catalog(); }
+    public List<com.example.iot.service.DemandDataService.Pair> catalog() { return service.catalog(); }
 
     @GetMapping(value = "/forecasts", produces = MediaType.APPLICATION_JSON_VALUE)
     public String forecasts() { return service.latest(); }
 
-    @PostMapping(value = "/demo-jobs", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> start() {
-        return ResponseEntity.accepted().contentType(MediaType.APPLICATION_JSON).body(service.startDemo());
+    @PostMapping(value = "/forecast-jobs", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String,Object>> start() {
+        return ResponseEntity.accepted().body(jobs.startForecast());
     }
+
+    @GetMapping("/replenishment")
+    public Map<String,Object> replenishment() { return replenishment.latest(); }
+
+    @GetMapping("/status")
+    public Map<String,Object> status() { return jobs.status(); }
 
     @GetMapping(value = "/jobs/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public String job(@PathVariable UUID id) { return service.job(id); }

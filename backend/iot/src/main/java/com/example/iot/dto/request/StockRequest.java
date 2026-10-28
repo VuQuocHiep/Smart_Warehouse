@@ -14,6 +14,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class StockRequest {
+    @NotBlank(message = "Cần chọn kho nhập/xuất")
+    private String warehouseId;
+
     @NotEmpty(message = "Phiếu không có sản phẩm nào")
     @Valid
     private List<Item> items;

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { Badge, Button, Drawer, Empty, Space, Tag, Typography, message, notification } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { shelfApi } from '../api/shelf'
+import { formatDateTime } from '../utils/date'
 
 const displayMessage = value => value?.replace(/^\[Giả lập\]\s*/, '')
 
@@ -73,7 +74,7 @@ export default function ProductNotifications({ className }) {
       {rows.map(({ alert, read: isRead }) => <article key={alert.id} style={{ padding: '16px 0', borderBottom: '1px solid #eee' }}>
         <Space wrap><Tag color={alert.resolvedAt ? 'green' : 'red'}>{alert.resolvedAt ? 'Đã kết thúc' : 'Vượt ngưỡng'}</Tag>{!isRead && <Tag color="blue">Chưa đọc</Tag>}</Space>
         <Typography.Paragraph style={{ marginTop: 8 }}>{displayMessage(alert.message)}</Typography.Paragraph>
-        <Space wrap><Typography.Text type="secondary">{new Date(alert.createdAt).toLocaleString('vi-VN')}</Typography.Text>
+        <Space wrap><Typography.Text type="secondary">{formatDateTime(alert.createdAt)}</Typography.Text>
           {!isRead && <Button size="small" onClick={() => read(alert.id)}>Đánh dấu đã đọc</Button>}</Space>
       </article>)}
     </Drawer>

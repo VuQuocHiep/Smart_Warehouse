@@ -2,10 +2,10 @@
 
 ## Chuẩn bị
 
-Chạy MySQL, backend và frontend theo [hướng dẫn local](../README.md#local), migration đến V11.
+Chạy MySQL, backend và frontend theo [hướng dẫn local](../README.md#local), migration đến V13.
 Không cần Python. Đăng nhập bằng tài khoản được cấp; quyền lấy từ JWT.
 Tạo sản phẩm có SKU, trọng lượng đơn vị theo gram; tạo kệ nếu muốn demo xếp hàng.
-[Seed catalog](../database/seeds/README.md) không tạo tồn; lập phiếu nhập trước khi xuất.
+V13 tự tạo catalog DEMAND_V13 và lịch sử/tồn demo. [Script catalog cũ](../database/seeds/README.md) vẫn không tạo tồn cho SIM_SKU.
 
 ## Tem và camera
 
@@ -20,13 +20,13 @@ Admin/manager có thể tạo nhanh sản phẩm chưa biết khi nhập; staff 
 
 ## Phiếu
 
-1. Thêm SKU, kiểm tra số lượng nguyên.
+1. Chọn kho nhập/xuất, thêm SKU và kiểm tra số lượng nguyên.
 2. Nhập: chọn kệ/gợi ý nếu có; gợi ý là quy tắc Java. Kệ thiếu sức chứa bị từ chối khi ghi phiếu.
 3. Không có cân: bỏ chọn cân đối chiếu và xác nhận.
-4. Xuất: không vượt tổng tồn; tự trừ các kệ có lượng hàng lớn trước.
+4. Xuất: không vượt tồn của kho đã chọn; chỉ trừ các kệ thuộc kho đó. Kệ nhập phải thuộc kho đã chọn.
 5. Kiểm tra tồn và lịch sử sau mỗi phiếu.
 
-Tồn tổng và phần tồn đã xếp kệ là hai mức dữ liệu khác nhau.
+Tồn tổng, tồn theo kho và phần tồn đã xếp kệ là các mức dữ liệu khác nhau. Tồn legacy chưa xác định kho không tự được phân bổ.
 Gán sản phẩm vào kệ giám sát không tự tạo số lượng tồn.
 
 ## Cân
@@ -48,6 +48,8 @@ Tổng tải gồm mặt cân/bì/hàng phải trong 5 kg; không tự suy ra s�
 | POST /inventory/stock-in | Nhập |
 | POST /inventory/stock-out | Xuất |
 | GET /inventory/getAll | Tồn tổng |
+| GET /inventory/warehouses | Danh sách kho cho ADMIN/MANAGER/STAFF |
+| GET /inventory/warehouse-stock | Tồn theo kho |
 | GET /inventory/history | Lịch sử |
 | GET /inventory/used-skus | SKU đã giao dịch |
 | POST /inventory/placement-suggestions | Gợi ý kệ |
@@ -55,6 +57,7 @@ Tổng tải gồm mặt cân/bì/hàng phải trong 5 kg; không tự suy ra s�
 | POST /api/scale/capture | Bằng chứng cân |
 
 API người dùng dùng Bearer token; qua Compose thêm /backend trước đường dẫn.
+Body phiếu nhập/xuất và gợi ý kệ cần có `warehouseId` bên cạnh `items`.
 POST /api/scale/readings dùng X-Device-Key của ESP.
 
 ## Demo

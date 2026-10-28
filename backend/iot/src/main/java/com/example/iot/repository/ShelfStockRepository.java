@@ -12,9 +12,14 @@ import com.example.iot.entity.ShelfStockEntity;
 
 @Repository
 public interface ShelfStockRepository extends JpaRepository<ShelfStockEntity, String> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     Optional<ShelfStockEntity> findByShelfIdAndProductId(String shelfId, String productId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     List<ShelfStockEntity> findByProductIdOrderByQuantityDesc(String productId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    List<ShelfStockEntity> findByShelfId(String shelfId);
 
     @Query("select coalesce(sum(s.quantity), 0L) from ShelfStockEntity s where s.shelfId = :shelfId")
     long sumQuantity(@Param("shelfId") String shelfId);
