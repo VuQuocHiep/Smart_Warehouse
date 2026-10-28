@@ -1,7 +1,10 @@
-import { BarcodeOutlined, DeleteOutlined, EditOutlined, LinkOutlined, PlusOutlined, ProductOutlined, ReloadOutlined, SearchOutlined, TagsOutlined } from "@ant-design/icons";
+import { BarcodeOutlined, DeleteOutlined, EditOutlined, LinkOutlined, PlusOutlined, ProductOutlined, ReloadOutlined, ScanOutlined, SearchOutlined, TagsOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { Button, Empty, Form, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { createProduct, deleteProduct, getAllProduct, updateProduct } from "../../api/product";
+import QrLabel from "../../components/QrLabel";
+import ScannerCamera from "../../components/ScannerCamera";
+import { inventoryApi } from "../../api/inventory";
 
 const { Text, Title } = Typography;
 
@@ -28,9 +31,33 @@ export default function Product(){
     const [saving,setSaving] = useState(false);
     const [modalOpen,setModalOpen] = useState(false);
     const [editing,setEditing] = useState(null);
-
+    const [scanOpen,setScanOpen] = useState(false);
+    const [usedSkus,setUsedSkus] = useState([]);
+    const [stockMap,setStockMap] = useState({});
+        // Lấy tồn kho từng SKU và danh sách SKU đã có giao dịch (để khóa SKU, chặn xóa)
+    const fetchInventoryInfo = async()=>{
+        try {
+            const stockRes = await inventoryApi.getAll();
+            const stockBody = stockRes?.data ?? stockRes;
+            const stockList = Array.isArray(stockBody) ? stockBody : stockBody?.data;
+            const map = {};
+            (Array.isArray(stockList) ? stockList : []).forEach((s)=>{ map[s.sku] = s.stock; });
+            setStockMap(map);
+        } catch (error) {
+            setStockMap({});
+        }
+        try {
+            const usedRes = await inventoryApi.getUsedSkus();
+            const usedBody = usedRes?.data ?? usedRes;
+            const usedList = Array.isArray(usedBody) ? usedBody : usedBody?.data;
+            setUsedSkus(Array.isArray(usedList) ? usedList : []);
+        } catch (error) {
+            setUsedSkus([]);
+        }
+    }
     const fetchProducts = async()=>{
         setLoading(true);
+        fetchInventoryInfo();
         try {
             const response = await getAllProduct();
             setData(Array.isArray(response) ? response : response?.data || []);
@@ -63,10 +90,21 @@ export default function Product(){
         })
     },[category,data,keyword])
 
+    // Mã tự tạo: SP + số thứ tự tiếp theo (SP001, SP002...) dựa trên các mã SPxxx đã có
+    const nextSku = ()=>{
+        const numbers = data
+            .map((item)=>/^SP(\d+)$/i.exec(item?.sku || ""))
+            .filter(Boolean)
+            .map((match)=>parseInt(match[1],10));
+        const next = (numbers.length ? Math.max(...numbers) : 0) + 1;
+        return `SP${String(next).padStart(3,"0")}`;
+    }
+        // Sản phẩm đã có giao dịch nhập/xuất thì không cho đổi SKU
+    const skuLocked = !!editing && usedSkus.includes(editing.sku);
     const openCreate = ()=>{
         setEditing(null);
         form.resetFields();
-        form.setFieldsValue({ unit:"ITEM", unit_weight:0 });
+        form.setFieldsValue({ unit:"ITEM" });
         setModalOpen(true);
     }
 
@@ -91,6 +129,8 @@ export default function Product(){
         try {
             const payload = {
                 ...value,
+                sku:(value.sku || "").trim(),
+                name:(value.name || "").trim(),
                 unit_weight:Number(value.unit_weight || 0),
             };
             if (editing) {
@@ -103,15 +143,20 @@ export default function Product(){
             closeModal();
             fetchProducts();
         } catch (error) {
-            message.error(error.message || "Không thể lưu sản phẩm");
+                        message.error(error.message?.includes("400") ? "Dữ liệu không hợp lệ hoặc SKU/tên sản phẩm đã tồn tại" : (error.message || "Không thể lưu sản phẩm"));
         } finally {
             setSaving(false);
         }
     }
 
-    const handleDelete = async(id)=>{
+        const handleDelete = async(item)=>{
+        const stock = stockMap[item.sku] ?? 0;
+        if (stock > 0) {
+            message.warning(`Không thể xóa: sản phẩm ${item.sku} còn ${stock} trong kho. Hãy xuất hết hàng trước.`);
+            return;
+        }
         try {
-            await deleteProduct(id);
+            await deleteProduct(item.productId);
             message.success("Xóa sản phẩm thành công");
             fetchProducts();
         } catch (error) {
@@ -183,13 +228,14 @@ export default function Product(){
                                     <strong>{item?.unit_weight || 0}</strong>
                                 </div>
                                 <div className="product-card-actions">
+                                    <QrLabel sku={item?.sku} name={item?.name} />
                                     <Button icon={<EditOutlined />} onClick={()=>openUpdate(item)}>
                                         Sửa
                                     </Button>
                                     <Popconfirm
                                         title="Xóa sản phẩm"
                                         description="Bạn có chắc chắn muốn xóa sản phẩm này?"
-                                        onConfirm={()=>handleDelete(item.productId)}
+                                        onConfirm={()=>handleDelete(item)}
                                         okText="Xóa"
                                         cancelText="Hủy"
                                     >
@@ -217,10 +263,52 @@ export default function Product(){
             >
                 <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
                     <div className="catalog-form-grid">
-                        <Form.Item label="SKU" name="sku" rules={[{required:true,message:"Vui lòng nhập SKU"}]}>
-                            <Input prefix={<BarcodeOutlined />} placeholder="SKU-001" size="large"/>
+                                                <Form.Item
+                            label="SKU"
+                            name="sku"
+                            extra={skuLocked ? "Không thể đổi SKU vì sản phẩm đã có giao dịch nhập/xuất" : undefined}
+                            rules={[
+                                {required:true,message:"Vui lòng nhập SKU"},
+                                {
+                                    validator:(_,value)=>{
+                                        const v = (value || "").trim().toLowerCase();
+                                        const duplicated = data.some((p)=>p?.sku?.trim().toLowerCase() === v && p.productId !== editing?.productId);
+                                        return duplicated ? Promise.reject(new Error("SKU này đã tồn tại")) : Promise.resolve();
+                                    },
+                                },
+                            ]}
+                        >
+                            <Input
+                                disabled={skuLocked}
+                                prefix={<BarcodeOutlined />}
+                                placeholder="SP001"
+                                size="large"
+                                suffix={
+                                    <>
+                                        <Button disabled={skuLocked} size="small" type="text" icon={<ScanOutlined />} onClick={()=>setScanOpen(true)}>
+                                            Quét
+                                        </Button>
+                                        <Button disabled={skuLocked} size="small" type="text" icon={<ThunderboltOutlined />} onClick={()=>form.setFieldValue("sku",nextSku())}>
+                                            Tự tạo
+                                        </Button>
+                                    </>
+                                }
+                            />
                         </Form.Item>
-                        <Form.Item label="Tên sản phẩm" name="name" rules={[{required:true,message:"Vui lòng nhập tên sản phẩm"}]}>
+                        <Form.Item
+    label="Tên sản phẩm"
+    name="name"
+    rules={[
+        {required:true,message:"Vui lòng nhập tên sản phẩm"},
+        {
+            validator:(_,value)=>{
+                const v = (value || "").trim().toLowerCase();
+                const duplicated = data.some((p)=>p?.name?.trim().toLowerCase() === v && p.productId !== editing?.productId);
+                return duplicated ? Promise.reject(new Error("Tên sản phẩm này đã tồn tại")) : Promise.resolve();
+            },
+        },
+    ]}
+>
                             <Input prefix={<ProductOutlined />} placeholder="Tên sản phẩm" size="large"/>
                         </Form.Item>
                         <Form.Item label="Danh mục" name="category" rules={[{required:true,message:"Vui lòng nhập danh mục"}]}>
@@ -229,8 +317,8 @@ export default function Product(){
                         <Form.Item label="Ảnh sản phẩm" name="image_url">
                             <Input prefix={<LinkOutlined />} placeholder="https://..." size="large"/>
                         </Form.Item>
-                        <Form.Item label="Trọng lượng đơn vị" name="unit_weight" rules={[{required:true,message:"Vui lòng nhập trọng lượng"},{type:"number",min:0,message:"Trọng lượng không được âm"}]}>
-                            <InputNumber className="catalog-full-input" min={0} placeholder="0" size="large"/>
+                        <Form.Item label="Trọng lượng đơn vị" name="unit_weight" rules={[{required:true,message:"Vui lòng nhập trọng lượng"},{type:"number",min:0.001,message:"Trọng lượng phải lớn hơn 0"}]}>
+                        <InputNumber className="catalog-full-input" step={0.01} placeholder="0.25" size="large"/>
                         </Form.Item>
                         <Form.Item label="Đơn vị" name="unit" rules={[{required:true,message:"Vui lòng chọn đơn vị"}]}>
                             <Select options={unitOptions} placeholder="Chọn đơn vị" size="large"/>
@@ -259,6 +347,25 @@ export default function Product(){
                         <Input.TextArea autoSize={{ minRows: 3, maxRows: 5 }} placeholder="Ghi chú thêm về sản phẩm"/>
                     </Form.Item>
                 </Form>
+            </Modal>
+
+            <Modal
+                footer={null}
+                onCancel={()=>setScanOpen(false)}
+                open={scanOpen}
+                title="Quét mã để điền SKU"
+                width={560}
+            >
+                {scanOpen && (
+                    <ScannerCamera
+                        onScan={(code)=>{
+                            form.setFieldValue("sku",code);
+                            setScanOpen(false);
+                            message.success(`Đã điền mã: ${code}`);
+                        }}
+                        onError={(text)=>message.error(text)}
+                    />
+                )}
             </Modal>
         </div>
     )
