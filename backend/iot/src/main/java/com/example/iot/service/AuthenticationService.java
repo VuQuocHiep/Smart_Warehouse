@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
-    protected static final String SIGNER_KEY="V7mQ2xLp9Ka4NzT8cRw5YfH1uGj6Ds3EeB0iXqMkP4vLn2ZaC9sWtF7hJ5rUyK8d";
+    private final com.example.iot.config.JwtKey jwtKey;
     private final AuthenticationRepository authenticationRepository;
     private final UserRepository userRepository;
     public AuthenticationResponse login(AuthenticationRequest request){
@@ -70,7 +70,7 @@ public class AuthenticationService {
                                         .build();
             Payload payload = new Payload(jwtClaimsSet.toJSONObject());
             JWSObject jwsObject = new JWSObject(jwsHeader, payload);
-            jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
+            jwsObject.sign(new MACSigner(jwtKey.bytes()));
             return jwsObject.serialize();
         } catch (Exception e) {
             throw new RuntimeException("Token generation failed: " + e.getMessage(),e);
@@ -79,7 +79,7 @@ public class AuthenticationService {
     public AuthenticationResponse refreshToken(RefreshTokenRequest request){
         try {
             SignedJWT signedJWT = SignedJWT.parse(request.getRefreshToken());
-            boolean verified = signedJWT.verify(new MACVerifier(SIGNER_KEY.getBytes()));
+            boolean verified = signedJWT.verify(new MACVerifier(jwtKey.bytes()));
             Date expireDate = signedJWT.getJWTClaimsSet().getExpirationTime();
             if (!verified || expireDate.before(new Date())) {
                 throw new RuntimeException("Refresh token is invalid or expired");
@@ -101,7 +101,7 @@ public class AuthenticationService {
         try {
             String token = request.getToken();
             SignedJWT signedJWT = SignedJWT.parse(token);
-            boolean verified = signedJWT.verify(new MACVerifier(SIGNER_KEY.getBytes()));
+            boolean verified = signedJWT.verify(new MACVerifier(jwtKey.bytes()));
             Date expireDate = signedJWT.getJWTClaimsSet().getExpirationTime();
             boolean isValid = verified && expireDate.after(new Date());
             IntrospectResponse introspectResponse = new IntrospectResponse();

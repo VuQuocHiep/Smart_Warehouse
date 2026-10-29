@@ -13,6 +13,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DemandForecastService {
+    private CloudDemandBatchService batch;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void configureBatch(CloudDemandBatchService batch) { this.batch=batch; }
+    private boolean batchMode() { return batch!=null && batch.enabled(); }
     private final DemandDataService data;
     private final RestClient client;
     private final boolean enabled;
@@ -26,10 +30,10 @@ public class DemandForecastService {
         factory.setReadTimeout(Duration.ofSeconds(30));
         client=RestClient.builder().baseUrl(url).requestFactory(factory).build();
     }
-    public boolean enabled() { return enabled && !token.isBlank(); }
+    public boolean enabled() { return batchMode() || (enabled && !token.isBlank()); }
     public List<DemandDataService.Pair> catalog() { return data.catalog(); }
-    public String latest() { return exchange("/forecasts/latest",null); }
-    public String job(UUID id) { return exchange("/jobs/"+id,null); }
+    public String latest() { return batchMode()?batch.latest():exchange("/forecasts/latest",null); }
+    public String job(UUID id) { return batchMode()?batch.job(id):exchange("/jobs/"+id,null); }
     public Map<String,Object> health() { return parse(exchange("/health",null)); }
     public Map<String,Object> submit(String id,String action,DemandDataService.Snapshot snapshot) {
         return parse(exchange("/jobs",Map.of("jobId",id,"action",action,"snapshot",snapshot)));

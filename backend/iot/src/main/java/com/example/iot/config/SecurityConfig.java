@@ -18,11 +18,15 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
-    protected static final String SIGNER_KEY="V7mQ2xLp9Ka4NzT8cRw5YfH1uGj6Ds3EeB0iXqMkP4vLn2ZaC9sWtF7hJ5rUyK8d";
+    private final JwtKey jwtKey;
+    public SecurityConfig(JwtKey jwtKey) { this.jwtKey = jwtKey; }
     @Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.authorizeHttpRequests(authorizeHttpRequestsCustomizer->authorizeHttpRequestsCustomizer
             .requestMatchers(HttpMethod.POST,"/auth/login").permitAll()
+            .requestMatchers(HttpMethod.GET,"/healthz").permitAll()
+            // These endpoints independently verify the runner token and attempt lease.
+            .requestMatchers("/internal/demand/**").permitAll()
             .requestMatchers(HttpMethod.POST,"/api/sensor/readings").permitAll()
             .requestMatchers(HttpMethod.POST,"/api/scale/readings").permitAll()
             .anyRequest().authenticated()
@@ -39,7 +43,7 @@ public class SecurityConfig {
 	}
     @Bean
     JwtDecoder jwtDecoder(){
-        SecretKeySpec secretKeySpec = new SecretKeySpec(SIGNER_KEY.getBytes(),"HmacSHA256");
+        SecretKeySpec secretKeySpec = new SecretKeySpec(jwtKey.bytes(),"HmacSHA256");
         return NimbusJwtDecoder
                 .withSecretKey(secretKeySpec)
                 .macAlgorithm(MacAlgorithm.HS256)

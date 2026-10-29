@@ -210,8 +210,10 @@ export default function DemandForecastDashboard() {
     <Text type="secondary">
       Tự huấn luyện lúc 05:00 thứ Hai hằng tuần (giờ Việt Nam). Dự báo cập nhật hằng ngày bằng model đã lưu.
       {result?.modelTrainedAt && ` Huấn luyện gần nhất: ${shortDateTime(result.modelTrainedAt)}.`}
+      {result?.generatedAt && ` Dự báo cập nhật: ${shortDateTime(result.generatedAt)}.`}
       {schedule?.nextTrainingAt && ` Lịch tiếp theo: ${shortDateTime(schedule.nextTrainingAt)}.`}
     </Text>
+    {schedule?.executionMode === 'GITHUB_BATCH' && <Text type="secondary">Lịch xử lý có thể trễ; hệ thống chạy bù và giữ kết quả thành công gần nhất.</Text>}
     {result?.dataSource && <Tag color="blue">Lịch sử nhập/xuất kho</Tag>}
     {job?.status === 'FAILED' && <Alert type="warning" showIcon title={job.message || 'Job thất bại; hệ thống giữ kết quả trước đó.'} />}
     <Select allowClear placeholder="Tất cả kho" aria-label="Lọc kho dự báo và cảnh báo" style={{ width: '100%', maxWidth: 400 }} value={warehouseFilter} onChange={(id) => setWarehouseFilter(id || null)}

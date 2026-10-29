@@ -96,6 +96,8 @@ Truy cập **http://localhost:8088**. Cấu hình gồm frontend, backend, ML v�
 
 - [Kiến trúc hệ thống](docs/architecture.md)
 - [Triển khai Docker](docs/docker.md)
+- [Triển khai cloud miễn phí: Render, Aiven, GitHub Actions](docs/cloud-render.md)
+- [Biên bản nghiệm thu cloud IoT mức 3](docs/cloud-acceptance.md)
 - [Nhập/xuất, quét mã và in tem](docs/inventory.md)
 - [Cấu hình và hiệu chuẩn cân HX711](docs/hx711-weighing.md)
 - [Giám sát bảo quản sản phẩm](docs/product-environment-monitoring.md)

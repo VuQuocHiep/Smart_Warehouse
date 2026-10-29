@@ -40,11 +40,12 @@ Xem [giới hạn AI thử nghiệm](../AI/HYBRID.md).
 
 ## Dự báo
 
-Python tùy chọn nhận catalog UUID theo sản phẩm được gán vào kệ.
-Sinh lịch sử mô phỏng, dự báo 14 ngày và lưu joblib/metadata trong runtime.
-Chưa dùng lịch sử stock_transaction để train.
-Chưa có model hoặc đến hạn 7 ngày thì lần gọi tiếp theo kích hoạt train; chưa có chế độ đóng băng model.
-Một Uvicorn worker; xem [hợp đồng và giới hạn](demand-forecasting.md).
+Spring tổng hợp lịch sử OUT theo ngày/kho/sản phẩm từ stock_transaction, phân biệt nguồn
+REAL và SIMULATED. V13 khởi tạo lịch sử seed một lần. Train 05:00 thứ Hai giờ Việt Nam,
+dự báo hằng ngày dùng lại model, có chạy bù và job lưu bền vững.
+Local dùng một Uvicorn worker, joblib trên volume; cloud dùng GitHub Actions chạy batch,
+joblib và kết quả lưu MySQL bằng V15. Xem [hợp đồng](demand-forecasting.md) và
+[hướng dẫn cloud](cloud-render.md).
 
 ## Giao diện và quyền
 
@@ -58,10 +59,12 @@ Dự báo dành cho admin/manager. Backend kiểm tra quyền độc lập với
 Local: web 5173, backend 8080, MySQL 3306, Python tùy chọn 8091 trên loopback.
 Docker: Nginx xuất 8088; /backend/ chuyển sang backend:8080.
 MySQL và ML chỉ ở mạng Compose; mysql_data và ml_data giữ dữ liệu.
-Schema mới: B1 rồi V2–V11; xem [README](../README.md).
+Schema mới: B1 rồi V2–V15; xem [README](../README.md).
 
 Chưa có triển khai cloud được xác nhận. Đưa ứng dụng, database và phân tích lên cloud
 với một ESP32 là mục tiêu cấp 3 theo thang đã thảo luận. Cấp 4 cần nhiều nút có phân tích cục bộ
 và cơ chế quan sát/nhận cập nhật phù hợp; bốn kho trên dashboard không phải bốn nút thật.
 Trước public cần HTTPS, xác minh chứng chỉ ESP32, cấu hình origin web và khóa riêng.
-Render cần cấu hình service/Blueprint riêng; Compose không thay thế render.yaml.
+Render có blueprint render.yaml cho frontend static/backend Free; Aiven MySQL tạo riêng,
+Python batch trên GitHub Actions. Compose vẫn dùng cho local. Các cấu hình đã được chuẩn bị,
+chưa xác nhận triển khai cloud hay thiết bị thật; xem [biên bản nghiệm thu](cloud-acceptance.md).

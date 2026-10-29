@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <time.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
 #include <HX711.h>
@@ -20,14 +22,43 @@
 #define HX711_DT 16
 #define HX711_SCK 21
 
-const char* ssid = "QuocHiep";
-const char* password = "31072005";
-// Set this once for BOTH environmental and weighing telemetry.
-#define BACKEND_BASE_URL "http://172.20.10.2:8080"
+#if __has_include("config.local.h")
+#include "config.local.h"
+#else
+#include "config.example.h"
+#endif
+const char* ssid = WAREHOUSE_WIFI_SSID;
+const char* password = WAREHOUSE_WIFI_PASSWORD;
 const char* serverUrl = BACKEND_BASE_URL "/api/sensor/readings";
 const char* scaleServerUrl = BACKEND_BASE_URL "/api/scale/readings";
-const char* deviceKey = "esp32-warehouse-01";
-const char* deviceCode = "ESP_ENV_01";
+const char* deviceKey = WAREHOUSE_DEVICE_KEY;
+const char* deviceCode = WAREHOUSE_DEVICE_CODE;
+
+// Called only by network tasks. TLS/NTP must never block HX711 acquisition in loop().
+bool beginBackendRequest(HTTPClient& http, WiFiClient& plain, WiFiClientSecure& secure, const char* url) {
+  http.setReuse(false);
+  http.setConnectTimeout(5000);
+  http.setTimeout(15000);
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
+  if (strncmp(url, "https://", 8) == 0) {
+    if (!strlen(WAREHOUSE_ROOT_CA)) {
+      Serial.println("HTTPS: cau hinh WAREHOUSE_ROOT_CA trong config.local.h");
+      return false;
+    }
+    if (time(nullptr) < 1700000000) {
+      configTime(0, 0, "pool.ntp.org", "time.google.com");
+      unsigned long started = millis();
+      while (time(nullptr) < 1700000000 && millis() - started < 10000UL) vTaskDelay(pdMS_TO_TICKS(200));
+      if (time(nullptr) < 1700000000) { Serial.println("HTTPS: chua dong bo duoc gio NTP"); return false; }
+    }
+    secure.setCACert(WAREHOUSE_ROOT_CA);
+    secure.setHandshakeTimeout(12);
+    return http.begin(secure, url);
+  }
+  if (WAREHOUSE_ALLOW_LOCAL_HTTP && strncmp(url, "http://", 7) == 0) return http.begin(plain, url);
+  Serial.println("Backend phai dung HTTPS");
+  return false;
+}
 
 constexpr float SCALE_PLATFORM_GRAMS = 0.0f; // Enter mass of the mica/fixtures borne by the cell.
 constexpr float SCALE_CAPACITY_GRAMS = 5000.0f;
@@ -297,9 +328,8 @@ void scaleNetworkTask(void*) {
       request["commandId"] = state.commandId;
       request["commandResult"] = state.commandResult;
       String body; serializeJson(request, body);
-      WiFiClient client; HTTPClient http;
-      http.setConnectTimeout(3000); http.setTimeout(5000); http.setReuse(false);
-      if (http.begin(client, scaleServerUrl)) {
+      WiFiClient client; WiFiClientSecure secure; HTTPClient http;
+      if (beginBackendRequest(http, client, secure, scaleServerUrl)) {
         http.addHeader("Content-Type", "application/json");
         http.addHeader("X-Device-Key", deviceKey);
         int code = http.POST(body);
@@ -411,11 +441,9 @@ int requestEnvironmentPrediction(float temperature, float humidity, int gasAdc) 
   serializeJson(request, body);
 
   WiFiClient client;
+  WiFiClientSecure secure;
   HTTPClient http;
-  http.setConnectTimeout(5000);
-  http.setTimeout(10000);
-  http.setReuse(false);
-  if (!http.begin(client, serverUrl)) {
+  if (!beginBackendRequest(http, client, secure, serverUrl)) {
     return -1;
   }
   http.addHeader("Content-Type", "application/json");
@@ -519,8 +547,8 @@ void setup() {
   Serial.print("Backend moi truong: "); Serial.println(serverUrl);
   Serial.print("Backend can: "); Serial.println(scaleServerUrl);
   // Only these tasks do HTTP. HX711/Preferences stay entirely in setup()/loop().
-  xTaskCreate(scaleNetworkTask, "hx711-http", 8192, nullptr, 1, nullptr);
-  xTaskCreate(environmentNetworkTask, "environment-http", 8192, nullptr, 1, nullptr);
+  xTaskCreate(scaleNetworkTask, "hx711-http", 12288, nullptr, 1, nullptr);
+  xTaskCreate(environmentNetworkTask, "environment-http", 12288, nullptr, 1, nullptr);
   lastReading = millis() - READ_INTERVAL_MS;
   lastScaleSampleAt = millis();
 }

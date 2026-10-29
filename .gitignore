@@ -6,3 +6,4 @@ __pycache__/
 !.env.example
 /RUN.md
 /certs/
+/hardware/warehouse_ai/config.local.h

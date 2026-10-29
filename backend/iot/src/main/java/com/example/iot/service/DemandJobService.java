@@ -20,6 +20,10 @@ public class DemandJobService {
     private final JdbcTemplate jdbc;
     private final DemandDataService data;
     private final DemandForecastService worker;
+    private CloudDemandBatchService batch;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void configureBatch(CloudDemandBatchService batch) { this.batch=batch; }
+    private boolean batchMode() { return batch!=null && batch.enabled(); }
 
     public static ZonedDateTime trainingPeriod(ZonedDateTime now) {
         var monday=now.withZoneSameInstant(DemandDataService.ZONE).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -82,6 +86,7 @@ public class DemandJobService {
     public void daily() { tick(); }
     @Scheduled(fixedDelay=30000,initialDelay=15000)
     public void tick() {
+        if(batchMode()) { batch.tick(); return; }
         if(!worker.enabled()) return;
         String owner=acquire(); if(owner==null) return;
         try {
@@ -109,6 +114,7 @@ public class DemandJobService {
     }
 
     public Map<String,Object> startForecast() {
+        if(batchMode()) return batch.startForecast();
         if(!worker.enabled()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Dịch vụ dự báo chưa bật.");
         String owner=acquire();
         if(owner==null) throw new ResponseStatusException(HttpStatus.CONFLICT,"Bộ điều phối đang cập nhật. Hãy thử lại.");
@@ -133,6 +139,7 @@ public class DemandJobService {
         var jobs=jdbc.queryForList("SELECT job_id,action,trigger_type,status,attempts,message,model_version,updated_at FROM demand_job ORDER BY created_at DESC LIMIT 10");
         result.put("jobs",jobs);
         result.put("nextTrainingAt",trainingPeriod(ZonedDateTime.now(DemandDataService.ZONE)).plusWeeks(1).toOffsetDateTime().toString());
+        result.put("executionMode",batchMode()?"GITHUB_BATCH":"HTTP_WORKER");
         return result;
     }
 }

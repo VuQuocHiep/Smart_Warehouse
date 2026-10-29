@@ -1,5 +1,9 @@
 # Dự báo xuất kho và nhu cầu nhập kho
 
+Cloud dùng `DEMAND_EXECUTION_MODE=GITHUB_BATCH`: Python chạy một lần trên GitHub Actions,
+model/job/kết quả lưu trong MySQL qua API nội bộ; xem [hướng dẫn Render](cloud-render.md).
+Các mô tả HTTP worker dưới đây áp dụng cho Docker/local (`HTTP_WORKER`, mặc định).
+
 ## Luồng dữ liệu
 
 ```text

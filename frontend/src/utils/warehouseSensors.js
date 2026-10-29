@@ -43,12 +43,18 @@ const buildGeneratedHistory = (name, latest) => {
 }
 
 export function getWarehouseReading(name, latest) {
-  if (latest?.warehouseReadings?.[name]) return { ...latest.warehouseReadings[name], warehouse: name }
+  const markFreshness = (reading) => {
+    // Backend monitoring timestamps use Vietnam local time; explicit offsets also work.
+    const recordedAt = reading.recordedAt && (/([zZ]|[+-]\d\d:\d\d)$/.test(reading.recordedAt) ? reading.recordedAt : `${reading.recordedAt}+07:00`)
+    return { ...reading, recordedAt, stale: reading.simulated !== true && (!recordedAt || !Number.isFinite(Date.parse(recordedAt)) || Date.now() - Date.parse(recordedAt) > 120000) }
+  }
+  if (latest?.warehouseReadings?.[name]) return markFreshness({ ...latest.warehouseReadings[name], warehouse: name })
   if (name === 'Kho 1' && hasSensorReading(latest)) {
-    return {
+    return markFreshness({
       ...latest,
       warehouse: name,
-    }
+      simulated: false,
+    })
   }
 
   if (name === 'Kho 1') return { temperature: null, humidity: null, gas: null, recordedAt: null, warehouse: name, simulated: false }
