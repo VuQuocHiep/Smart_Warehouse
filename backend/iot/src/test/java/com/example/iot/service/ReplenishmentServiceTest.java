@@ -9,7 +9,7 @@ class ReplenishmentServiceTest {
     @Test void simulatedForecastCannotGenerateRealSourceAlerts() {
         var worker=org.mockito.Mockito.mock(DemandForecastService.class);
         var data=org.mockito.Mockito.mock(DemandDataService.class);
-        org.mockito.Mockito.when(worker.latest()).thenReturn("{\"forecastDate\":\""+LocalDate.now(DemandDataService.ZONE)+"\",\"dataSource\":\"SIMULATED\",\"forecasts\":[]}");
+        org.mockito.Mockito.when(worker.latest()).thenReturn("{\"forecastDate\":\""+LocalDate.now(DemandDataService.ZONE)+"\",\"dataSource\":\"REAL\",\"forecasts\":[]}");
         org.mockito.Mockito.when(data.dataSource()).thenReturn("REAL");
         org.mockito.Mockito.when(data.catalog()).thenReturn(List.of(new DemandDataService.Pair("w","Kho","p","SKU","Product")));
         org.mockito.Mockito.when(data.balances()).thenReturn(List.of(Map.of("warehouse_id","w","product_id","p","reconciled",1,"stock",0,"safety_stock",0,"exported_today",0)));

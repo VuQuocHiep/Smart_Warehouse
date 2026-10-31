@@ -10,7 +10,7 @@ Hướng dẫn chạy và hợp đồng: [../../docs/demand-forecasting.md](../.
 - `smoke_test.py --snapshot <file.json>`: train thật từ snapshot xuất bởi backend test, sau đó kiểm chứng PREDICT không train lại.
 - `runtime/`: artifact và kết quả bền vững theo run, không commit vào Git.
 
-Spring Boot chịu trách nhiệm train khởi tạo, train 05:00 thứ Hai theo giờ Việt Nam, suy luận hằng ngày và chạy bù. Python không tự sinh lịch sử hoặc train theo tuổi model khi truy cập. Nguồn lịch sử là `SIMULATED` hoặc `REAL`, được kiểm tra tách biệt.
+Spring Boot chịu trách nhiệm train khởi tạo, train 05:00 thứ Hai theo giờ Việt Nam, suy luận hằng ngày và chạy bù. Python không tự sinh lịch sử hoặc train theo tuổi model khi truy cập. Lịch sử nhập ban đầu và giao dịch mới cùng dùng nguồn `REAL` từ V16; model cũ của dataset trước nâng cấp phải train lại.
 
 CSV dùng `date,warehouse_id,product_id,export_quantity,data_quality,data_source`. CLI offline vẫn có thể train/predict từ CSV đã xác minh:
 

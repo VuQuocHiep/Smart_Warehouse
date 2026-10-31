@@ -21,15 +21,13 @@ public class WarehouseStockService {
         int count = jdbc.update("UPDATE warehouse_inventory SET quantity=quantity+?,updated_at=UTC_TIMESTAMP(6) WHERE warehouse_id=? AND product_id=? AND quantity+? >= 0",
                 delta, warehouseId, productId, delta);
         if (count != 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không đủ tồn trong kho đã chọn.");
-        // Fixtures remain explicitly bounded; a new real ledger is complete from tomorrow.
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM demand_series WHERE warehouse_id=? AND product_id=?", Long.class, warehouseId, productId) == 0) {
-            jdbc.update("INSERT INTO demand_series VALUES (?,?,'REAL',DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)+INTERVAL 1 DAY,NULL,NULL)", warehouseId, productId);
-        }
+        // A newly opened ledger includes today's activity once the day has completed.
+        jdbc.update("INSERT INTO demand_series VALUES (?,?,'REAL',DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR),NULL,NULL) ON DUPLICATE KEY UPDATE complete_through=NULL", warehouseId, productId);
         return jdbc.queryForObject("SELECT quantity FROM warehouse_inventory WHERE warehouse_id=? AND product_id=?", Integer.class, warehouseId, productId);
     }
 
     public String source(String warehouseId, String productId) {
-        return jdbc.queryForObject("SELECT data_source FROM demand_series WHERE warehouse_id=? AND product_id=?", String.class, warehouseId, productId);
+        return "REAL";
     }
 
     public List<Map<String, Object>> stocks() {

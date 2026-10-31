@@ -30,9 +30,10 @@ Nguồn: [Render Free](https://render.com/docs/free),
    password, database; mặc định blueprint dùng `defaultdb`.
 3. Download **CA certificate** của project. Backend dùng `sslMode=VERIFY_IDENTITY` và
    truststore riêng để xác minh cả CA và hostname; không thêm `useSSL=false`.
-4. Khởi tạo trên database mới, trống. Flyway tự chạy baseline `B1`, V2–V15; không chạy
+4. Khởi tạo trên database mới, trống. Flyway tự chạy baseline `B1`, V2–V16; không chạy
    `V1__initial_database.sql` thủ công, không dùng `baseline-on-migrate=true` với DB cloud.
-   V13 seed 730 ngày tới hôm qua tại thời điểm migration; V14 chuẩn hóa tên; V15 lưu model.
+   V13 nạp 730 ngày tới hôm qua tại thời điểm migration; V14 chuẩn hóa tên; V15 lưu model;
+   V16 thống nhất lịch sử nhập ban đầu và giao dịch mới thành một ledger REAL.
 
 Nguồn: [TLS trên Aiven](https://aiven.io/docs/platform/concepts/tls-ssl-certificates).
 
@@ -75,7 +76,7 @@ Không thêm `/backend`: prefix này chỉ dùng với Nginx của Docker local.
 sau khi đổi biến Vite. SPA fallback `/* → /index.html` đã có trong blueprint. Nếu URL frontend
 chưa biết tại lần tạo đầu, cập nhật lại `CORS_ALLOWED_ORIGINS` bằng URL thật rồi deploy backend.
 
-Kiểm tra `https://<backend>/healthz` trả `{"status":"UP"}`, log Flyway tới V15, mở frontend,
+Kiểm tra `https://<backend>/healthz` trả `{"status":"UP"}`, log Flyway tới V16, mở frontend,
 đăng nhập bằng admin vừa cấu hình, thử refresh một đường dẫn bên trong app.
 Bootstrap chỉ tạo admin khi email chưa tồn tại, không đặt lại mật khẩu tài khoản cũ.
 
@@ -142,11 +143,11 @@ Các API web `/api/demand/*` giữ nguyên. Nhóm runner dùng `X-Batch-Token`, 
 | `POST /internal/demand/jobs/{id}/complete` | Multipart `result`, `metadata`, `model` khi TRAIN |
 | `POST /internal/demand/jobs/{id}/fail` | Đánh dấu lỗi, giữ kết quả trước |
 
-V13 vẫn là lịch sử seed, nguồn `SIMULATED` được giữ trong metadata. Sau ngày seed, dữ liệu
-bị giới hạn bởi `complete_through`: không tự bịa thêm ngày có xuất kho bằng 0. Nếu hết dữ liệu
-đầy đủ thì trạng thái STALE_DATA/cảnh báo không đủ dữ liệu là đúng. Để dùng lịch sử thực tế,
-cần tích lũy ít nhất 90 ngày đầy đủ theo series nguồn REAL và chuyển cấu hình phù hợp;
-không sửa nguồn seed thành REAL để làm kết quả có vẻ mới.
+V16 thống nhất lịch sử V13 và giao dịch mới thành nguồn `REAL`, bỏ giới hạn ngày chốt seed.
+Snapshot lấy tới hết hôm qua; ngày không có xuất kho trong ledger được tính là 0. Không cần
+cấu hình `DEMAND_DATA_SOURCE`; biến cũ nếu có sẽ không được sử dụng. Sau khi nâng cấp DB cũ,
+model cần train lại: chạy workflow thủ công hoặc chờ lịch Actions. Model/kết quả cũ được lưu
+trong lịch sử, nhưng không còn được phục vụ như kết quả của dataset mới.
 
 ## 4. ESP32 HTTPS
 

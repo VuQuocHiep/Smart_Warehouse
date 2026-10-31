@@ -14,7 +14,7 @@ class DemandForecastLiveTest {
     @Test @SuppressWarnings("unchecked")
     void databaseToJavaHttpToPythonJoblibToReplenishment() throws Exception {
         var jdbc=new JdbcTemplate(new DriverManagerDataSource(System.getenv("MYSQL_TEST_URL"),System.getenv("MYSQL_TEST_USER"),System.getenv("MYSQL_TEST_PASSWORD")));
-        var data=new DemandDataService(jdbc,"SIMULATED");
+        var data=new DemandDataService(jdbc);
         var worker=new DemandForecastService(data,System.getenv("DEMAND_LIVE_TEST_URL"),System.getenv("DEMAND_SERVICE_TOKEN"),true);
         var snapshot=data.snapshot();
         String id=UUID.randomUUID().toString();

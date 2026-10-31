@@ -37,11 +37,11 @@ class CloudDemandBatchIntegrationTest {
         // V15 depends only on demand_job; the complete migration chain is tested by MySqlBootstrapTest.
         var source=new DriverManagerDataSource(url,user,password);jdbc=new JdbcTemplate(source);
         jdbc.execute("CREATE TABLE demand_job (job_id VARCHAR(36) PRIMARY KEY,request_key VARCHAR(255) UNIQUE,action VARCHAR(16),trigger_type VARCHAR(24),status VARCHAR(24),attempts INT DEFAULT 0,data_cutoff DATE,dataset_id VARCHAR(128),model_version VARCHAR(128),message VARCHAR(1000),created_at DATETIME(6),updated_at DATETIME(6)) ENGINE=InnoDB");
-        Flyway.configure().dataSource(source).locations("classpath:db/migration").baselineOnMigrate(true).baselineVersion("14").load().migrate();
+        Flyway.configure().dataSource(source).locations("classpath:db/migration").baselineOnMigrate(true).baselineVersion("14").target("15").load().migrate();
         tx=new TransactionTemplate(new DataSourceTransactionManager(source));
         data=mock(DemandDataService.class);github=mock(GitHubDemandDispatcher.class);
         String cutoff=LocalDate.now(DemandDataService.ZONE).minusDays(1).toString();
-        snapshot=new DemandDataService.Snapshot(List.of(new DemandDataService.Pair("w","Kho 1","p","SKU","Product")),List.of(),cutoff,"SIMULATED","fixture");
+        snapshot=new DemandDataService.Snapshot(List.of(new DemandDataService.Pair("w","Kho 1","p","SKU","Product")),List.of(),cutoff,"REAL","fixture");
         when(data.snapshot()).thenReturn(snapshot);
         batch=newBatch();
     }
@@ -54,11 +54,11 @@ class CloudDemandBatchIntegrationTest {
     Map<String,Object> result(Map<String,Object> claim,String version) {
         LocalDate start=LocalDate.parse(snapshot.dataCutoff()).plusDays(1);
         var rows=new ArrayList<Map<String,Object>>();
-        for(int i=0;i<14;i++) rows.add(Map.of("warehouse_id","w","product_id","p","target_date",start.plusDays(i).toString(),"status","OK","predicted_quantity",10,"model_version",version,"data_source","SIMULATED","data_cutoff",snapshot.dataCutoff()));
-        return Map.of("runId",claim.get("jobId"),"modelVersion",version,"datasetId","fixture","dataSource","SIMULATED","dataCutoff",snapshot.dataCutoff(),"forecastDate",start.toString(),"forecasts",rows,"pairs",List.of(Map.of("warehouseId","w","productId","p")));
+        for(int i=0;i<14;i++) rows.add(Map.of("warehouse_id","w","product_id","p","target_date",start.plusDays(i).toString(),"status","OK","predicted_quantity",10,"model_version",version,"data_source","REAL","data_cutoff",snapshot.dataCutoff()));
+        return Map.of("runId",claim.get("jobId"),"modelVersion",version,"datasetId","fixture","dataSource","REAL","dataCutoff",snapshot.dataCutoff(),"forecastDate",start.toString(),"forecasts",rows,"pairs",List.of(Map.of("warehouseId","w","productId","p")));
     }
     Map<String,Object> metadata(String version) {
-        return Map.of("modelVersion",version,"datasetId","fixture","dataSource","SIMULATED","dataCutoff",snapshot.dataCutoff(),"formatVersion",1,"lightgbmVersion","test","sklearnVersion","test","artifactSha256",CloudDemandBatchService.sha256(MODEL));
+        return Map.of("modelVersion",version,"datasetId","fixture","dataSource","REAL","dataCutoff",snapshot.dataCutoff(),"formatVersion",1,"lightgbmVersion","test","sklearnVersion","test","artifactSha256",CloudDemandBatchService.sha256(MODEL));
     }
     Map<String,Object> complete(Map<String,Object> claim,String version) {
         return tx.execute(status->batch.complete(claim.get("jobId").toString(),claim.get("claimToken").toString(),result(claim,version),metadata(version),"TRAIN".equals(claim.get("action"))?MODEL:null));

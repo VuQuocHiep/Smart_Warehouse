@@ -44,8 +44,6 @@ services:
         sync: false
       - key: DEMAND_EXECUTION_MODE
         value: GITHUB_BATCH
-      - key: DEMAND_DATA_SOURCE
-        value: SIMULATED
       - key: DEMAND_BATCH_TOKEN
         generateValue: true
       - key: DEMAND_GITHUB_TOKEN

@@ -4,6 +4,8 @@
 - Trạng thái: đã triển khai trong code; đã kiểm tra migration và train thật trên MySQL tạm.
 - Múi giờ nghiệp vụ: `Asia/Ho_Chi_Minh`.
 
+> Cập nhật 31/10/2026: V16 thay thế phương án phân biệt nguồn bên dưới. Lịch sử seed và giao dịch mới đều được xử lý như giao dịch REAL, dùng chung một ledger liên tục. Không còn cấu hình chọn nguồn; xem [tài liệu hiện hành](demand-forecasting.md).
+
 ## 1. Mục tiêu
 
 Triển khai luồng dữ liệu:

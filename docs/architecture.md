@@ -40,8 +40,8 @@ Xem [giới hạn AI thử nghiệm](../AI/HYBRID.md).
 
 ## Dự báo
 
-Spring tổng hợp lịch sử OUT theo ngày/kho/sản phẩm từ stock_transaction, phân biệt nguồn
-REAL và SIMULATED. V13 khởi tạo lịch sử seed một lần. Train 05:00 thứ Hai giờ Việt Nam,
+Spring tổng hợp lịch sử OUT theo ngày/kho/sản phẩm từ stock_transaction, dùng nguồn REAL
+thống nhất cho lịch sử nhập ban đầu và giao dịch mới từ V16. V13 khởi tạo lịch sử một lần. Train 05:00 thứ Hai giờ Việt Nam,
 dự báo hằng ngày dùng lại model, có chạy bù và job lưu bền vững.
 Local dùng một Uvicorn worker, joblib trên volume; cloud dùng GitHub Actions chạy batch,
 joblib và kết quả lưu MySQL bằng V15. Xem [hợp đồng](demand-forecasting.md) và
@@ -59,7 +59,7 @@ Dự báo dành cho admin/manager. Backend kiểm tra quyền độc lập với
 Local: web 5173, backend 8080, MySQL 3306, Python tùy chọn 8091 trên loopback.
 Docker: Nginx xuất 8088; /backend/ chuyển sang backend:8080.
 MySQL và ML chỉ ở mạng Compose; mysql_data và ml_data giữ dữ liệu.
-Schema mới: B1 rồi V2–V15; xem [README](../README.md).
+Schema mới: B1 rồi V2–V16; xem [README](../README.md).
 
 Chưa có triển khai cloud được xác nhận. Đưa ứng dụng, database và phân tích lên cloud
 với một ESP32 là mục tiêu cấp 3 theo thang đã thảo luận. Cấp 4 cần nhiều nút có phân tích cục bộ

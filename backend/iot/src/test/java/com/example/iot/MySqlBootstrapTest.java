@@ -20,6 +20,61 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @EnabledIfEnvironmentVariable(named = "MYSQL_TEST_URL", matches = "jdbc:mysql:.*")
 class MySqlBootstrapTest {
     @org.junit.jupiter.api.Test
+    void v16MergesImportedAndLiveHistoryWithoutChangingTransactionsOrStock() throws Exception {
+        String serverUrl=System.getenv("MYSQL_TEST_URL"),username=System.getenv("MYSQL_TEST_USER"),password=System.getenv().getOrDefault("MYSQL_TEST_PASSWORD","");
+        String schema="unified_history_test_"+UUID.randomUUID().toString().replace("-","");
+        URI server=URI.create(serverUrl.substring("jdbc:".length()));
+        String url="jdbc:"+new URI(server.getScheme(),server.getAuthority(),"/"+schema,server.getQuery(),null);
+        try(var connection=DriverManager.getConnection(serverUrl,username,password);var statement=connection.createStatement()) {
+            statement.execute("CREATE DATABASE `"+schema+"` CHARACTER SET utf8mb4");
+            try {
+                Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").target("15").load().migrate();
+                var jdbc=new org.springframework.jdbc.core.JdbcTemplate(new DriverManagerDataSource(url,username,password));
+                String wh=jdbc.queryForObject("SELECT warehouse_id FROM warehouse WHERE monitoring_slot=1",String.class);
+                // An older seed followed by real activity on the same warehouse/product.
+                jdbc.update("UPDATE stock_transaction SET created_at=created_at-INTERVAL 3 DAY WHERE seed_batch_id='DEMAND_V13'");
+                jdbc.update("UPDATE demand_series SET history_start=history_start-INTERVAL 3 DAY,complete_through=complete_through-INTERVAL 3 DAY");
+                var legacyData=new com.example.iot.service.DemandDataService(jdbc);
+                jdbc.update("INSERT INTO demand_series VALUES (?,'d13-p03','REAL',DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)-INTERVAL 2 DAY,NULL,NULL)",wh);
+                String oldDataset=legacyData.snapshot().datasetId();
+                jdbc.update("UPDATE warehouse_inventory SET quantity=quantity-3 WHERE warehouse_id=? AND product_id='d13-p03'",wh);
+                jdbc.update("UPDATE inventory SET quantity=quantity-3 WHERE product_id='d13-p03'");
+                jdbc.update("INSERT INTO stock_transaction (transaction_id,product_id,type,quantity,stock_after,warehouse_id,warehouse_stock_after,created_at,data_source) VALUES ('live-out','d13-p03','OUT',3,997,?,497,UTC_TIMESTAMP()-INTERVAL 1 DAY,'REAL')",wh);
+                jdbc.update("INSERT INTO demand_job (job_id,request_key,action,trigger_type,status,attempts,data_cutoff,dataset_id,claim_token,created_at,updated_at) VALUES ('old-job','old-key','TRAIN','INITIAL','RUNNING',1,CURRENT_DATE,'old-dataset','old-claim',UTC_TIMESTAMP(),UTC_TIMESTAMP())");
+                jdbc.update("UPDATE demand_cloud_state SET active_model_version='old-model',active_result_job_id='old-job'");
+                long count=jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction",Long.class);
+                long stock=jdbc.queryForObject("SELECT SUM(quantity) FROM warehouse_inventory",Long.class);
+                long exported=jdbc.queryForObject("SELECT SUM(quantity) FROM stock_transaction WHERE type='OUT'",Long.class);
+                var flyway=Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").load();
+                assertEquals(1,flyway.migrate().migrationsExecuted);
+                flyway.validate();
+                assertEquals(0,flyway.migrate().migrationsExecuted);
+                assertEquals(count,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction",Long.class));
+                assertEquals(stock,jdbc.queryForObject("SELECT SUM(quantity) FROM warehouse_inventory",Long.class));
+                assertEquals(exported,jdbc.queryForObject("SELECT SUM(quantity) FROM stock_transaction WHERE type='OUT'",Long.class));
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE data_source<>'REAL'",Integer.class));
+                assertEquals(24,jdbc.queryForObject("SELECT COUNT(*) FROM demand_series WHERE data_source='REAL' AND complete_through IS NULL",Integer.class));
+                assertEquals(24,jdbc.queryForObject("SELECT COUNT(*) FROM demand_series",Integer.class));
+                assertEquals("FAILED",jdbc.queryForObject("SELECT status FROM demand_job WHERE job_id='old-job'",String.class));
+                org.junit.jupiter.api.Assertions.assertNull(jdbc.queryForObject("SELECT claim_token FROM demand_job WHERE job_id='old-job'",String.class));
+                org.junit.jupiter.api.Assertions.assertNull(jdbc.queryForObject("SELECT active_model_version FROM demand_cloud_state WHERE id=1",String.class));
+                var data=new com.example.iot.service.DemandDataService(jdbc);
+                var snapshot=data.snapshot();
+                assertTrue(!oldDataset.equals(snapshot.datasetId()));
+                assertEquals(24*733,snapshot.rows().size());
+                assertTrue(snapshot.rows().stream().allMatch(row -> "REAL".equals(row.get("data_source"))));
+                String yesterday=java.time.LocalDate.now(com.example.iot.service.DemandDataService.ZONE).minusDays(1).toString();
+                var latest=snapshot.rows().stream().filter(row -> wh.equals(row.get("warehouse_id")) && "d13-p03".equals(row.get("product_id")) && yesterday.equals(row.get("date"))).findFirst().orElseThrow();
+                assertEquals(3L,latest.get("export_quantity"));
+                var warehouseStock=new com.example.iot.service.WarehouseStockService(jdbc);
+                assertEquals(498,warehouseStock.change(wh,"d13-p03",1));
+                assertEquals("REAL",warehouseStock.source(wh,"d13-p03"));
+                assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM demand_series WHERE warehouse_id=? AND product_id='d13-p03'",Integer.class,wh));
+            } finally { statement.execute("DROP DATABASE `"+schema+"`"); }
+        }
+    }
+
+    @org.junit.jupiter.api.Test
     void v14NormalizesExistingCatalogWithoutChangingStockOrUserEdits() throws Exception {
         String serverUrl=System.getenv("MYSQL_TEST_URL"),username=System.getenv("MYSQL_TEST_USER"),password=System.getenv().getOrDefault("MYSQL_TEST_PASSWORD","");
         String schema="catalog_label_test_"+UUID.randomUUID().toString().replace("-","");
@@ -35,7 +90,7 @@ class MySqlBootstrapTest {
                 jdbc.update("INSERT INTO monitored_shelf (id,name,warehouse_id,device_code,capacity) SELECT 'old-shelf','SIM_SHELF_001',warehouse_id,'old-device',100 FROM warehouse WHERE monitoring_slot=1");
                 long stock=jdbc.queryForObject("SELECT SUM(quantity) FROM warehouse_inventory",Long.class);
                 long transactions=jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction",Long.class);
-                Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").load().migrate();
+                Flyway.configure().dataSource(url,username,password).locations("classpath:db/migration").target("14").load().migrate();
                 assertEquals(13,jdbc.queryForObject("SELECT COUNT(*) FROM product_sku_alias",Integer.class));
                 assertEquals("Hàng hóa 001",jdbc.queryForObject("SELECT name FROM product WHERE product_id='old-sim'",String.class));
                 assertEquals("Trà xanh",jdbc.queryForObject("SELECT name FROM product WHERE product_id='d13-p02'",String.class));
@@ -124,8 +179,11 @@ class MySqlBootstrapTest {
                 assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM warehouse_inventory wi WHERE wi.quantity<>(SELECT SUM(CASE WHEN t.type='IN' THEN t.quantity ELSE -t.quantity END) FROM stock_transaction t WHERE t.warehouse_id=wi.warehouse_id AND t.product_id=wi.product_id)",Integer.class));
                 assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM inventory i WHERE i.product_id LIKE 'd13-p%' AND i.quantity<>(SELECT SUM(wi.quantity) FROM warehouse_inventory wi WHERE wi.product_id=i.product_id)",Integer.class));
                 assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM shelf_stock ss JOIN monitored_shelf s ON s.id=ss.shelf_id WHERE ss.quantity>s.capacity",Integer.class));
-                var data=new com.example.iot.service.DemandDataService(jdbc,"SIMULATED");
+                assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE data_source<>'REAL'",Integer.class));
+                assertEquals(24,jdbc.queryForObject("SELECT COUNT(*) FROM demand_series WHERE data_source='REAL' AND complete_through IS NULL",Integer.class));
+                var data=new com.example.iot.service.DemandDataService(jdbc);
                 var snapshot=data.snapshot();
+                assertEquals("REAL",snapshot.dataSource());
                 assertEquals(24,snapshot.pairs().size());assertEquals(24*730,snapshot.rows().size());
                 assertEquals(24,data.balances().size());
                 assertTrue(data.balances().stream().allMatch(r -> ((Number)r.get("reconciled")).intValue()==1));

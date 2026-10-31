@@ -14,7 +14,7 @@ from demand_model import load_data, samples, metrics, forecast, FORMAT_VERSION, 
 def fixture(days=120, sku='SIM_A'):
     return pd.DataFrame({'date': pd.date_range('2025-01-01', periods=days),
                          'warehouse_id': 'SIM_WH', 'product_id': sku,
-                         'export_quantity': np.arange(days), 'data_quality': 'COMPLETE', 'data_source': 'SIMULATED'})
+                         'export_quantity': np.arange(days), 'data_quality': 'COMPLETE', 'data_source': 'REAL'})
 
 
 class DemandTests(unittest.TestCase):
@@ -37,7 +37,7 @@ class DemandTests(unittest.TestCase):
         path = self.root / 'model.joblib'
         joblib.dump(fit(samples(fixture())) | {'format_version': FORMAT_VERSION, 'sklearn_version': sklearn.__version__,
                      'lightgbm_version': lightgbm.__version__,
-                     'data_cutoff': '2025-01-01', 'data_source': 'SIMULATED',
+                     'data_cutoff': '2025-01-01', 'data_source': 'REAL',
                      'selected_method': 'seasonal_naive', 'model_version': 'test',
                      'known_pairs': [('SIM_WH', 'SIM_A')]}, path)
         return path

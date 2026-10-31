@@ -20,10 +20,10 @@ PAIR = {'warehouseId': 'warehouse-uuid', 'warehouseName': 'Kho 1', 'productId': 
 def snapshot():
     end = pd.Timestamp('2026-10-18')
     rows = [{'date': str(day.date()), 'warehouse_id': PAIR['warehouseId'], 'product_id': PAIR['productId'],
-             'export_quantity': 10 + index % 7, 'data_quality': 'COMPLETE', 'data_source': 'SIMULATED'}
+             'export_quantity': 10 + index % 7, 'data_quality': 'COMPLETE', 'data_source': 'REAL'}
             for index, day in enumerate(pd.date_range(end-pd.Timedelta(days=729), end))]
     return {'pairs': [PAIR], 'rows': rows, 'dataCutoff': '2026-10-18',
-            'dataSource': 'SIMULATED', 'datasetId': 'SIMULATED-fixture'}
+            'dataSource': 'REAL', 'datasetId': 'REAL-fixture'}
 
 
 class DemandServiceTests(unittest.TestCase):
@@ -46,7 +46,7 @@ class DemandServiceTests(unittest.TestCase):
         joblib.dump(fit(samples(data).tail(500)) | {
             'format_version': service.FORMAT_VERSION, 'sklearn_version': sklearn.__version__,
             'lightgbm_version': lightgbm.__version__, 'data_cutoff': str(data.date.max().date()),
-            'data_source': 'SIMULATED', 'selected_method': 'lightgbm_poisson',
+            'data_source': 'REAL', 'selected_method': 'lightgbm_poisson',
             'default_method': 'lightgbm_poisson', 'model_version': 'fixture',
             'known_pairs': [('warehouse-uuid', 'product-uuid')]}, output / 'model.joblib')
         service.write_json(output / 'metrics.json', {'model_version': 'fixture'})
@@ -57,7 +57,7 @@ class DemandServiceTests(unittest.TestCase):
 
     def test_rejects_unknown_pairs_duplicate_days_and_mixed_sources(self):
         for mutate in [lambda s: s['rows'].append(s['rows'][0]),
-                       lambda s: s['rows'][0].update(data_source='REAL'),
+                       lambda s: s['rows'][0].update(data_source='SIMULATED'),
                        lambda s: s['rows'][0].update(product_id='unknown')]:
             data = snapshot()
             mutate(data)
@@ -74,6 +74,20 @@ class DemandServiceTests(unittest.TestCase):
             self.assertEqual(submit.call_count, 1)
             other = self.client.post('/jobs', headers=self.headers, json=self.request().model_dump(mode='json'))
             self.assertEqual(other.status_code, 409)
+
+    def test_legacy_model_and_results_require_retraining(self):
+        with patch.object(service, 'train', side_effect=self.fake_train):
+            service.execute_job(self.request())
+        pointer = service.read_json(service.ROOT / 'active.json')
+        pointer['model']['dataSource'] = 'SIMULATED'
+        service.write_json(service.ROOT / 'active.json', pointer)
+        result_path = service.ROOT / 'runs' / pointer['runId'] / 'result.json'
+        service.write_json(result_path, service.read_json(result_path) | {'dataSource': 'SIMULATED'})
+        self.assertFalse(service.health()['modelReady'])
+        self.assertEqual(service.latest()['forecasts'], [])
+        with patch.object(service, 'train') as training:
+            service.execute_job(self.request('PREDICT'))
+        training.assert_not_called()
 
     def test_restart_interrupts_unfinished_job(self):
         request = self.request()

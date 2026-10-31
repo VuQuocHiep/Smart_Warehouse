@@ -41,6 +41,16 @@ class DemandInventoryIntegrationTest {
         assertTrue(product.getSku().matches("HH[0-9]+"));
         assertTrue(products.existsBySkuAndDeletedFalse("DEMAND_V13_001"));
     }
+    @Test void importedProductUsesTheSameRealSourceForNewStockTransactions() {
+        String wh=warehouse(1),sku="DEMAND_V13_004",pid="d13-p04";
+        int before=stock(wh,pid);
+        int transactions=jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE warehouse_id=? AND product_id=?",Integer.class,wh,pid);
+        inventory.stockIn(request(wh,sku,null));
+        inventory.stockOut(request(wh,sku,null));
+        assertEquals(before,stock(wh,pid));
+        assertEquals(transactions+2,jdbc.queryForObject("SELECT COUNT(*) FROM stock_transaction WHERE warehouse_id=? AND product_id=? AND data_source='REAL'",Integer.class,wh,pid));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM demand_series WHERE warehouse_id=? AND product_id=?",Integer.class,wh,pid));
+    }
     @Test void wrongShelfRollsBackWarehouseAndGlobalChanges() {
         String wh=warehouse(1);int before=stock(wh,"d13-p01");
         assertThrows(RuntimeException.class,() -> inventory.stockIn(request(wh,"DEMAND_V13_001","d13-s2-01")));

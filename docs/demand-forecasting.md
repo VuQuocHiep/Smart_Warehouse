@@ -57,12 +57,11 @@ Terminal backend, dùng cùng token và giữ các biến DB đang sử dụng:
 $env:DEMAND_SERVICE_ENABLED = 'true'
 $env:DEMAND_SERVICE_URL = 'http://127.0.0.1:8091'
 $env:DEMAND_SERVICE_TOKEN = '<token-noi-bo>'
-$env:DEMAND_DATA_SOURCE = 'SIMULATED'
 cd backend/iot
 .\mvnw.cmd spring-boot:run
 ```
 
-Nếu wrapper gặp lỗi môi trường, dùng Maven đã cài. Backend tự migrate V12/V13; sau khi ML sẵn sàng sẽ tạo job train khởi tạo. Mở dashboard bằng tài khoản ADMIN/MANAGER để theo dõi. Nút **Cập nhật dự báo** chỉ suy luận; việc mở trang không kích hoạt train.
+Nếu wrapper gặp lỗi môi trường, dùng Maven đã cài. Backend tự migrate tới V16; sau khi ML sẵn sàng sẽ tạo job train khởi tạo. Mở dashboard bằng tài khoản ADMIN/MANAGER để theo dõi. Nút **Cập nhật dự báo** chỉ suy luận; việc mở trang không kích hoạt train.
 
 Frontend:
 
@@ -72,21 +71,24 @@ npm ci
 npm run dev
 ```
 
-Với Docker, Compose đã bật ML và mặc định chọn `SIMULATED`. Joblib và kết quả lưu tại volume `ml_data`; image không đóng gói model runtime của máy local. Xem [Docker](docker.md).
+Với Docker, Compose đã bật ML. Toàn bộ lịch sử nhập/xuất dùng nguồn `REAL`. Joblib và kết quả lưu tại volume `ml_data`; image không đóng gói model runtime của máy local. Xem [Docker](docker.md).
 
 ## Nguồn dữ liệu và giới hạn
 
-V14 chuẩn hóa tên/SKU/ghi chú hiển thị: hàng hóa dùng mã `HH...`, tên hàng và tên kệ không còn tiền tố demo. Bảng `product_sku_alias` giữ mã cũ để barcode vẫn tra cứu được. V13 đã áp dụng được giữ nguyên checksum; V14 cập nhật dữ liệu một lần khi backend khởi động. Metadata nguồn gốc `data_source` và đợt seed vẫn được giữ nội bộ, không đổi dữ liệu sinh mẫu thành dữ liệu thực đã xác minh.
+V14 chuẩn hóa tên/SKU/ghi chú hiển thị: hàng hóa dùng mã `HH...`, tên hàng và tên kệ không còn tiền tố demo. Bảng `product_sku_alias` giữ mã cũ để barcode vẫn tra cứu được.
+
+V16 chuyển lịch sử nhập ban đầu sang `REAL`, gộp các chuỗi cùng kho/sản phẩm và nối tiếp bằng giao dịch mới. Không đổi số lượng, thời gian, số dư hoặc nhân đôi giao dịch. Mã đợt nhập ban đầu vẫn giữ để truy vết; V13–V15 giữ nguyên checksum Flyway. Database mới cũng chạy V16 sau V13–V15.
+
+Sau nâng cấp, model cũ cần train lại vì dataset đã đổi. Cloud bỏ con trỏ model/kết quả cũ và hủy job đang chờ/chạy; Actions nhận job TRAIN mới. Local tự train lại khi worker sẵn sàng, không cần xóa volume. Biến `DEMAND_DATA_SOURCE` cũ không còn được sử dụng; có thể xóa khỏi cấu hình Render hoặc `.env`.
 
 Biểu đồ xuất tự hiển thị 21 ngày lịch sử + 7 ngày dự báo khi chiều rộng từ 1120 px, hoặc 14 + 7 trên khung hẹp hơn. Nhãn ngày là chữ không viền; toàn bộ ngày hiển thị dùng `dd/mm`, thời gian dùng `dd/mm HH:mm`. Định dạng ISO của API và dữ liệu model không thay đổi.
 
-- `DEMAND_DATA_SOURCE=SIMULATED` dùng ledger mẫu V13. `REAL` chỉ dùng chuỗi nghiệp vụ thật. Một model không trộn hai nguồn.
+- Một ledger `REAL` thống nhất cho lịch sử nhập ban đầu và mọi giao dịch mới; không còn chế độ phân tách nguồn seed.
 - Backend truy vấn ledger đầy đủ; không dùng danh sách 200 giao dịch trên giao diện lịch sử để train.
 - Timestamp giao dịch mới và seed lưu UTC; backend cộng UTC+7 trước khi nhóm ngày. Dữ liệu cũ thiếu kho không tự được xem là lịch sử đã xác minh.
-- Lịch sử mới REAL được xem là đầy đủ từ ngày sau giao dịch đầu tiên; ngày đầu chỉ có một phần ngày được bỏ qua. Ngày không phát sinh trong khoảng ledger liên tục được ghi nhận 0.
-- `demand_series.complete_through` của dữ liệu mẫu được giới hạn ở ngày chốt seed. Sau ngày đó, hệ thống không tự giả định ngày trống là xuất 0; kết quả trả `STALE_DATA` nếu lịch sử chưa được bổ sung và xác minh.
-- Các thao tác demo trên sản phẩm thuộc chuỗi mẫu giữ nguồn `SIMULATED`; chúng không tự mở rộng mốc xác minh lịch sử. Để demo nhiều ngày cần bộ dữ liệu mới hoặc cập nhật phạm vi đã xác minh bằng migration bổ sung.
-- Chế độ REAL cần lịch sử đã xác minh đủ dài: benchmark hiện tại cần khoảng 22 tháng; suy luận bằng model chung cần tối thiểu 90 ngày cho chuỗi mới.
+- Ledger mới bắt đầu từ ngày giao dịch đầu tiên. Snapshot chỉ lấy tới hết hôm qua; ngày không phát sinh trong khoảng ledger liên tục được ghi nhận 0. Toàn bộ nhập/xuất cần được ghi nhận qua hệ thống để tổng xuất theo ngày đầy đủ.
+- V16 bỏ giới hạn ngày chốt seed (`complete_through=NULL`), nên lịch sử nhập ban đầu được nối tiếp tới hôm qua. Trạng thái `STALE_DATA` vẫn dùng khi snapshot thực sự thiếu ngày gần nhất.
+- Train cần lịch sử đủ dài: benchmark hiện tại cần khoảng 22 tháng; suy luận bằng model chung cần tối thiểu 90 ngày cho chuỗi mới.
 - Tối đa 64 cặp mỗi model, một worker và một job tại một thời điểm. Dùng một Uvicorn worker.
 - Dữ liệu mẫu không chứng minh độ chính xác trên nhu cầu thực tế. Model dự báo lượng xuất đã quan sát, chưa phản ánh nhu cầu bị mất do hết hàng.
 

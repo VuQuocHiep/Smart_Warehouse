@@ -52,6 +52,7 @@ def model_ready(model):
                 and model.get('lightgbmVersion') == lightgbm.__version__
                 and model.get('sklearnVersion') == sklearn.__version__
                 and model.get('datasetId')
+                and model.get('dataSource') == 'REAL'
                 and (ROOT / 'runs' / model['runId'] / 'artifacts/model.joblib').is_file())
 
 
@@ -87,14 +88,14 @@ class Observation(BaseModel):
     product_id: str = Field(min_length=1, max_length=255)
     export_quantity: int = Field(ge=0)
     data_quality: Literal['COMPLETE']
-    data_source: Literal['REAL', 'SIMULATED']
+    data_source: Literal['REAL']
 
 
 class Snapshot(BaseModel):
     pairs: list[Pair] = Field(min_length=1, max_length=64)
     rows: list[Observation] = Field(min_length=1, max_length=500000)
     dataCutoff: date
-    dataSource: Literal['REAL', 'SIMULATED']
+    dataSource: Literal['REAL']
     datasetId: str = Field(min_length=1, max_length=128, pattern=r'^[A-Za-z0-9_-]+$')
 
     @model_validator(mode='after')
@@ -220,5 +221,7 @@ def latest():
     if not pointer.exists():
         return {'forecasts': [], 'history': [], 'pairs': []}
     result = read_json(ROOT / 'runs' / read_json(pointer)['runId'] / 'result.json')
+    if result.get('dataSource') != 'REAL':
+        return {'forecasts': [], 'history': [], 'pairs': []}
     result['nextTrainingAt'] = next_training_at()
     return result

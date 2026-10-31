@@ -50,8 +50,8 @@ def load_data(path):
         raise ValueError('Duplicate date/warehouse/SKU rows.')
     if not frame['data_quality'].eq('COMPLETE').all():
         raise ValueError('This baseline version requires COMPLETE data; do not impute missing/stockout days as zero.')
-    if frame.data_source.nunique() != 1 or not frame.data_source.isin(['SIMULATED', 'REAL']).all():
-        raise ValueError('Exactly one explicit data_source (SIMULATED or REAL) is required.')
+    if not frame.data_source.eq('REAL').all():
+        raise ValueError('The stock ledger must use data_source REAL.')
     frame = frame.sort_values(KEYS + ['date']).reset_index(drop=True)
     for key, group in frame.groupby(KEYS):
         if not group['date'].diff().dropna().eq(pd.Timedelta(days=1)).all():

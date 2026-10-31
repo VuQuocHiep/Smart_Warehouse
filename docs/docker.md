@@ -118,7 +118,6 @@ Hệ số hiệu chuẩn lưu trên ESP32, không nằm trong Docker volume.
 | DB_PASSWORD | Mật khẩu user warehouse trong database iot |
 | MYSQL_ROOT_PASSWORD | Mật khẩu root MySQL |
 | DEMAND_SERVICE_TOKEN | Token dùng chung backend/ML |
-| DEMAND_DATA_SOURCE | Nguồn lịch sử `SIMULATED` (mặc định) hoặc `REAL` |
 | IOT_INGEST_KEY | Khóa xác thực telemetry môi trường và cân |
 | IOT_SCALE_DEVICE_CODE | Mã ESP được service cân chấp nhận |
 | MQ2_GAS_LEVEL1/2/3 | Ngưỡng ADC tăng dần, mặc định 1800/2500/3200 |
@@ -131,14 +130,14 @@ cho heap; đây không phải giới hạn tổng RAM của container.
 
 ## Database, model và cập nhật
 
-MySQL mới chạy B1 rồi V2–V13: gồm tồn kho, tồn kệ, bằng chứng cân, sai số mặc định ±50 g, tồn theo kho và seed lịch sử dự báo.
+MySQL mới chạy B1 rồi V2–V16: gồm tồn kho, tồn kệ, bằng chứng cân, sai số mặc định ±50 g, tồn theo kho, lịch sử dự báo và lưu model cloud.
 Không chạy V1 legacy thủ công. Volume mới không tự nhập database đang chạy ngoài Docker.
 V13 tự nạp 12 sản phẩm DEMAND_V13, 24 chuỗi và 730 ngày lịch sử mẫu; restart không nạp lại.
 Xem [dự báo](demand-forecasting.md) và [demo nhập/xuất](inventory.md).
 
 ML lưu joblib, metadata và kết quả trong ml_data. Sau migration, backend tự tạo train khởi tạo khi ML sẵn sàng;
 train lại 05:00 thứ Hai và suy luận 00:10 hằng ngày theo giờ Việt Nam. Build image không sao chép runtime local.
-Lịch sử mẫu dừng tại ngày chốt V13; không tự bổ sung ngày xuất 0 khi restart hoặc khi thời gian trôi qua.
+V16 chuyển lịch sử V13 sang REAL và nối tiếp bằng giao dịch mới tới hết hôm qua; ngày không phát sinh trong ledger được tính xuất 0. Khi nâng cấp, backend tự tạo job train mới sau khi ML sẵn sàng; không cần xóa database hoặc volume model.
 
 Sau khi cập nhật code:
 

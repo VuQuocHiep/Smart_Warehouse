@@ -9,7 +9,7 @@ Hệ thống quản lý kho hàng tích hợp giám sát môi trường bằng E
 - Giám sát nhiệt độ, độ ẩm và gas; phân tích cảnh báo và điều khiển đèn, quạt, còi.
 - Gợi ý vị trí kệ theo điều kiện bảo quản, sức chứa và lịch sử xuất hàng.
 - Hiệu chuẩn, trừ bì và cân đối chiếu phiếu bằng HX711.
-- Dự báo nhu cầu 14 ngày bằng LightGBM trên dữ liệu mô phỏng.
+- Dự báo nhu cầu 14 ngày bằng LightGBM từ lịch sử nhập/xuất; lịch sử nhập ban đầu và giao dịch mới dùng chung nguồn REAL từ V16.
 - Xác thực JWT và phân quyền Admin, Manager, Staff.
 
 ## Công nghệ

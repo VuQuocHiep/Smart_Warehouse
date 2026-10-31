@@ -23,13 +23,25 @@ Trạng thái: **CHƯA NGHIỆM THU CLOUD/THIẾT BỊ THẬT**. Không ghi đ�
 
 Log kiểm tra nằm trong các thư mục build/runtime bị git-ignore; không chứa secrets cloud.
 
+## Kiểm tra cập nhật V16 ngày 31/10/2026
+
+- Backend: 73 test case, 72 đạt, 1 bỏ qua (live worker tùy chọn); 0 lỗi/thất bại.
+- Python: 27 test đạt, gồm việc từ chối model/kết quả cũ sau khi đổi nguồn lịch sử.
+- MySQL 8.0 riêng biệt: DB mới, nâng cấp V11/V15 tới V16, validate checksum và chạy lại
+  migration không phát sinh thay đổi. Hai nguồn cũ cùng kho/sản phẩm được gộp thành REAL;
+  số giao dịch, tổng lượng xuất và số dư tồn giữ nguyên. Lịch sử tiếp tục tới hết hôm qua.
+- Nhập/xuất với hàng đã nhập ban đầu dùng chung nguồn REAL; kiểm tra cạnh tranh tồn/kệ
+  và rollback đạt. Cấu hình Docker/Render không còn chọn nguồn lịch sử.
+- Chỉ kiểm thử trên MySQL tạm; chưa áp dụng V16 vào database ứng dụng đang chạy,
+  chưa build/deploy Docker hoặc cloud cho cập nhật này.
+
 ## Nghiệm thu trên cloud và thiết bị thật
 
 | Hạng mục | Kết quả thực tế / bằng chứng |
 |---|---|
 | Commit triển khai, ngày giờ, người kiểm tra | Chưa điền |
 | URL frontend/backend (không ghi secrets) | Chưa tạo |
-| Flyway trên Aiven tới V15 | Chưa chạy trên cloud |
+| Flyway trên Aiven tới V16 | Chưa chạy trên cloud |
 | ESP32 thực, đúng deviceCode, HTTPS xác minh CA | Chưa kiểm tra |
 | Điện thoại khác mạng, máy Docker local tắt | Chưa kiểm tra |
 | Số đo → phân tích cloud → đèn/quạt/còi | Chưa kiểm tra |

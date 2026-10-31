@@ -4,7 +4,6 @@ import java.time.*;
 import java.util.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,15 +14,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class DemandDataService {
     public static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final JdbcTemplate jdbc;
-    private final String source;
-    public DemandDataService(JdbcTemplate jdbc, @Value("${demand.data-source:SIMULATED}") String source) {
+    private static final String SOURCE = "REAL";
+    public DemandDataService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
-        if (!Set.of("REAL", "SIMULATED").contains(source)) throw new IllegalArgumentException("Invalid demand.data-source");
-        this.source = source;
     }
     public record Pair(String warehouseId, String warehouseName, String productId, String sku, String productName) {}
     public record Snapshot(List<Pair> pairs, List<Map<String,Object>> rows, String dataCutoff, String dataSource, String datasetId) {}
-    public String dataSource() { return source; }
+    public String dataSource() { return SOURCE; }
 
     public List<Pair> catalog() {
         return jdbc.query("""
@@ -40,17 +37,18 @@ public class DemandDataService {
     @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public Snapshot snapshot() {
         LocalDate cutoff = LocalDate.now(ZONE).minusDays(1);
-        var series = jdbc.queryForList("SELECT ds.* FROM demand_series ds JOIN warehouse w ON w.warehouse_id=ds.warehouse_id JOIN product p ON p.product_id=ds.product_id WHERE ds.data_source=? AND w.deleted=0 AND p.deleted=0 ORDER BY ds.warehouse_id,ds.product_id", source);
+        var series = jdbc.queryForList("SELECT ds.* FROM demand_series ds JOIN warehouse w ON w.warehouse_id=ds.warehouse_id JOIN product p ON p.product_id=ds.product_id WHERE ds.data_source=? AND w.deleted=0 AND p.deleted=0 ORDER BY ds.warehouse_id,ds.product_id", SOURCE);
         Map<String,Long> quantities = new HashMap<>();
         jdbc.query("""
             SELECT warehouse_id,product_id,DATE(created_at+INTERVAL 7 HOUR) AS day,SUM(quantity) AS qty
             FROM stock_transaction WHERE type='OUT' AND warehouse_id IS NOT NULL AND data_source=?
               AND created_at < ? GROUP BY warehouse_id,product_id,DATE(created_at+INTERVAL 7 HOUR)
             """, rs -> { quantities.put(rs.getString(1)+":"+rs.getString(2)+":"+rs.getDate(3).toLocalDate(),rs.getLong(4)); },
-            source, java.sql.Timestamp.valueOf(cutoff.plusDays(1).atStartOfDay().minusHours(7)));
+            SOURCE, java.sql.Timestamp.valueOf(cutoff.plusDays(1).atStartOfDay().minusHours(7)));
         List<Map<String,Object>> rows = new ArrayList<>();
         Set<String> keys = new HashSet<>();
-        StringBuilder identity = new StringBuilder(source);
+        // A new ledger contract also invalidates artifacts/jobs from before V16.
+        StringBuilder identity = new StringBuilder("ledger-v16|").append(SOURCE);
         for (var s : series) {
             String wh = s.get("warehouse_id").toString(), pid = s.get("product_id").toString();
             LocalDate start = ((java.sql.Date)s.get("history_start")).toLocalDate();
@@ -62,15 +60,15 @@ public class DemandDataService {
             for (LocalDate day=start; !day.isAfter(end); day=day.plusDays(1)) {
                 rows.add(Map.of("date",day.toString(),"warehouse_id",wh,"product_id",pid,
                         "export_quantity",quantities.getOrDefault(wh+":"+pid+":"+day,0L),
-                        "data_quality","COMPLETE","data_source",source));
+                        "data_quality","COMPLETE","data_source",SOURCE));
             }
         }
-        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Chưa có lịch sử đầy đủ cho nguồn dữ liệu "+source+".");
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Chưa có lịch sử đầy đủ cho nguồn dữ liệu "+SOURCE+".");
         var pairs = catalog().stream().filter(p -> keys.contains(p.warehouseId()+":"+p.productId())).toList();
         if (pairs.size()>64) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Hỗ trợ tối đa 64 cặp kho/sản phẩm mỗi model.");
         try {
-            String id = source+"-"+HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(identity.toString().getBytes(StandardCharsets.UTF_8))).substring(0,32);
-            return new Snapshot(pairs,rows,cutoff.toString(),source,id);
+            String id = SOURCE+"-"+HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(identity.toString().getBytes(StandardCharsets.UTF_8))).substring(0,32);
+            return new Snapshot(pairs,rows,cutoff.toString(),SOURCE,id);
         } catch (java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
     }
 
