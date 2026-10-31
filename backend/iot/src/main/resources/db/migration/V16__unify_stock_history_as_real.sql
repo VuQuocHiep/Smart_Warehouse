@@ -1,6 +1,15 @@
 -- Treat the imported opening history and subsequent transactions as one live ledger.
 -- Keep V12-V15 unchanged so already migrated databases retain valid Flyway checksums.
-CREATE TEMPORARY TABLE demand_series_unified AS
+-- Aiven requires primary keys on temporary tables as well as permanent tables.
+CREATE TEMPORARY TABLE demand_series_unified (
+    warehouse_id VARCHAR(255) NOT NULL,
+    product_id VARCHAR(255) NOT NULL,
+    history_start DATE NOT NULL,
+    seed_batch_id VARCHAR(64) NULL,
+    PRIMARY KEY (warehouse_id, product_id)
+) ENGINE=InnoDB;
+
+INSERT INTO demand_series_unified (warehouse_id,product_id,history_start,seed_batch_id)
 SELECT warehouse_id, product_id, MIN(history_start) AS history_start,
        MIN(seed_batch_id) AS seed_batch_id
 FROM demand_series
