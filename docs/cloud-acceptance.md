@@ -37,6 +37,19 @@ Log kiểm tra nằm trong các thư mục build/runtime bị git-ignore; không
 
 ## Nghiệm thu trên cloud và thiết bị thật
 
+### Bản sửa V16 cho primary key bắt buộc trên Aiven (31/10/2026)
+
+- Log triển khai thực tế: Docker build thành công, Aiven từ chối V16 cũ với error 3750
+  tại `CREATE TEMPORARY TABLE` không có primary key. Backend chưa khởi động thành công.
+- Bản sửa khai báo primary key cho bảng tạm ngay khi tạo; không đổi SQL nghiệp vụ phía sau.
+- 17 kiểm thử tích hợp đạt trên MySQL 8.0 riêng biệt khởi động với
+  `--sql-require-primary-key=ON`: DB mới, nâng cấp, nhập/xuất, cloud batch và khôi phục V16.
+- Đã tái hiện bản V16 cũ thất bại đúng error 3750. Script bảo trì phục hồi đúng bản ghi
+  V16 lỗi hoặc cập nhật checksum V16 đã thành công, giữ nguyên dữ liệu và các migration khác.
+  Checksum không nhận diện thì không được sửa; chạy lại script không phát sinh thay đổi.
+- Chưa chạy script bảo trì trên Aiven hoặc xác nhận backend Render đã UP sau bản sửa.
+  Làm theo [hướng dẫn khôi phục](cloud-render.md#khôi-phục-v16-lỗi-primary-key-trên-aiven).
+
 | Hạng mục | Kết quả thực tế / bằng chứng |
 |---|---|
 | Commit triển khai, ngày giờ, người kiểm tra | Chưa điền |

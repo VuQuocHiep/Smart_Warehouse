@@ -231,6 +231,47 @@ và điều chỉnh, không tự nâng gói trả phí. Theo dõi Aiven storage/
 minutes/cache và Render outbound bandwidth. Forecast batch gọi lại backend để lấy dữ liệu
 thực; lịch ghép các service free không có cam kết đúng giờ hay uptime.
 
+### Khôi phục V16 lỗi primary key trên Aiven
+
+Triệu chứng: build Docker thành công nhưng backend dừng ở V16 với MySQL error **3750**,
+`sql_require_primary_key`, tại câu `CREATE TEMPORARY TABLE`. Render có thể đồng thời báo
+`No open ports detected` vì ứng dụng chưa khởi động xong. Nguyên nhân là bảng tạm V16 cũ
+không có primary key; không phải cấu hình PORT. Bản sửa khai báo primary key ngay lúc tạo
+bảng tạm và giữ nguyên toàn bộ SQL cập nhật dữ liệu sau `START TRANSACTION`.
+
+Đây là ngoại lệ sửa V16 đã phát hành: thêm V17 sẽ không giúp DB đang bị chặn ở V16.
+V12–V15 giữ nguyên. V16 cũ có checksum `725522090`, bản sửa có checksum `-237718015`.
+
+1. Đưa bản sửa lên **đúng branch Render đang dùng**. Nếu Render dùng `main`, merge PR từ
+   `docker-cloud` vào `main`. Không reset database và không tắt kiểm tra primary key.
+2. Kết nối Aiven bằng MySQL client qua TLS, chọn đúng database ứng dụng (`defaultdb` theo
+   blueprint). Sao lưu trước khi bảo trì theo hướng dẫn bên dưới. Kiểm tra:
+
+   ```sql
+   SELECT DATABASE();
+   SELECT version,script,checksum,success
+   FROM flyway_schema_history WHERE version='16';
+   ```
+
+3. Với đúng lỗi 3750 ở câu đầu như trên, chạy file
+   [`repair_v16_primary_key.sql`](../backend/iot/src/main/resources/db/maintenance/repair_v16_primary_key.sql)
+   trong SQL client. File không tự chạy khi backend khởi động, chỉ xử lý đúng version 16,
+   tên script và checksum cũ đã biết:
+   - `success=0`: bỏ bản ghi migration thất bại để Flyway chạy V16 đã sửa.
+   - `success=1`: đổi checksum sang bản sửa, không chạy lại V16 đã thành công ở local.
+   - Checksum khác hoặc không có bản ghi: không sửa gì. Nếu không có bản ghi thì V16 còn
+     pending và backend bản sửa có thể chạy trực tiếp. Nếu checksum khác, cần kiểm tra
+     nguyên nhân trước khi repair; không xóa toàn bộ bảng lịch sử.
+4. Render → `smart-warehouse-api` → **Manual Deploy → Deploy latest commit**. Xác nhận
+   V16 thành công, `https://<backend>/healthz` trả UP và backend không tiếp tục restart.
+
+Nếu trước đó chạy V16 cũ thành công ở Docker local, chạy cùng file repair trên DB local
+trước khi khởi động backend bản sửa để tránh checksum mismatch. Hai nhánh khôi phục và
+việc chạy repair lặp lại được kiểm thử trên MySQL tạm với primary key bắt buộc.
+
+Nguồn: [Primary key trên Aiven](https://aiven.io/docs/products/mysql/howto/create-missing-primary-keys),
+[Flyway repair và schema history](https://documentation.red-gate.com/flyway/reference/commands/repair).
+
 ### Backup/restore
 
 Backup định kỳ và trước khi đổi schema. Dùng mysqldump qua TLS, không đặt password trên
