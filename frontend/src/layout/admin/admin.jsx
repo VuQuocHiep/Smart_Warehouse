@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BoxPlotOutlined,
   DashboardOutlined,
+  LineChartOutlined,
   DownOutlined,
   ExportOutlined,
   HistoryOutlined,
@@ -31,6 +32,11 @@ const { Header, Sider, Content } = Layout
 const { Text } = Typography
 
 const menuItems = [
+  {
+    key: '/admin/forecast',
+    icon: <LineChartOutlined />,
+    label: <Link to="/admin/forecast">Dự báo nhu cầu</Link>,
+  },
   {
     key: '/admin/overview',
     icon: <DashboardOutlined />,
@@ -152,13 +158,13 @@ export default function Admin() {
         onCollapse={setCollapsed}
         className="admin-sidebar"
         trigger={null}
-        width={320}
+        width={248}
       >
         <div className={collapsed ? 'admin-brand admin-brand--collapsed' : 'admin-brand'}>
           <div className="admin-logo-mark">
             <InboxOutlined />
           </div>
-          {!collapsed && <strong className="admin-brand-text">SMART WAREHOUSE</strong>}
+          {!collapsed && <strong className="admin-brand-text">SMART<br />WAREHOUSE</strong>}
         </div>
 
         <Menu

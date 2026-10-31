@@ -136,13 +136,13 @@ export default function Staff() {
         collapsedWidth={86}
         onCollapse={setCollapsed}
         trigger={null}
-        width={320}
+        width={248}
       >
         <div className={collapsed ? 'staff-brand staff-brand--collapsed' : 'staff-brand'}>
           <div className="staff-logo-mark">
             <InboxOutlined />
           </div>
-          {!collapsed && <strong className="staff-brand-text">SMART WAREHOUSE</strong>}
+          {!collapsed && <strong className="staff-brand-text">SMART<br />WAREHOUSE</strong>}
         </div>
 
         <Menu

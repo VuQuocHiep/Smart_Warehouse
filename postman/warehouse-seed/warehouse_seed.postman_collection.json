@@ -1,0 +1,1686 @@
+{
+  "info": {
+    "name": "Smart Warehouse - warehouse_seed.sql",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "SIMULATED seed data. Set password and baseUrl, then run folders 01-04 once in order. Maps SQL warehouses to existing Kho 1/Kho 2. Products and shelves are created in the application; rerunning creation folders can produce duplicate errors. Folder 05 tests forecasting separately. SQL inventory/RFID/transactions have no current ingestion endpoints; full source data is in warehouse_seed.data.json."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "ADMINPTIT@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "warehouse_SIM_WH01",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "warehouse_SIM_WH02",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU001",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU002",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU003",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU004",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU005",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU006",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU007",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU008",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU009",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU010",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU011",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_SIM_SKU012",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Authentication",
+      "item": [
+        {
+          "name": "01 Login - set password in collection variables",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Authenticated', () => pm.expect(data.authentication).to.eql(true));",
+                  "    pm.test('JWT returned', () => pm.expect(data.token).to.be.a('string').and.not.empty);",
+                  "    if (data.authentication && data.token) pm.collectionVariables.set('accessToken', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Existing warehouse mapping",
+      "item": [
+        {
+          "name": "02 Map SIM_WH01 -> Kho 1, SIM_WH02 -> Kho 2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/warehouse/getAll",
+            "description": "Uses existing monitored warehouses because POST /api/shelves rejects warehouses without monitoringSlot. Source warehouse names/codes remain in warehouse_seed.data.json."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "const rows = pm.response.json();",
+                  "const wh1 = rows.find(w => w.monitoringSlot === 1 && !w.deleted);",
+                  "pm.test('Kho 1 exists', () => pm.expect(wh1).to.be.an('object'));",
+                  "if (wh1) pm.collectionVariables.set('warehouse_SIM_WH01', wh1.warehouseId);",
+                  "const wh2 = rows.find(w => w.monitoringSlot === 2 && !w.deleted);",
+                  "pm.test('Kho 2 exists', () => pm.expect(wh2).to.be.an('object'));",
+                  "if (wh2) pm.collectionVariables.set('warehouse_SIM_WH02', wh2.warehouseId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Create 12 products - run once",
+      "item": [
+        {
+          "name": "Create SIM_SKU001",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU001\",\n  \"name\": \"Demo product 01\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"stable\",\n  \"unit_weight\": 0.125,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU001', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU002",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU002\",\n  \"name\": \"Demo product 02\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"stable\",\n  \"unit_weight\": 0.15,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU002', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU003",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU003\",\n  \"name\": \"Demo product 03\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"weekly\",\n  \"unit_weight\": 0.175,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU003', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU004",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU004\",\n  \"name\": \"Demo product 04\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"weekly\",\n  \"unit_weight\": 0.2,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU004', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU005",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU005\",\n  \"name\": \"Demo product 05\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"growth\",\n  \"unit_weight\": 0.225,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU005', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU006",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU006\",\n  \"name\": \"Demo product 06\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"growth\",\n  \"unit_weight\": 0.25,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU006', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU007",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU007\",\n  \"name\": \"Demo product 07\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"decline\",\n  \"unit_weight\": 0.275,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU007', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU008",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU008\",\n  \"name\": \"Demo product 08\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"decline\",\n  \"unit_weight\": 0.3,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU008', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU009",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU009\",\n  \"name\": \"Demo product 09\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"seasonal\",\n  \"unit_weight\": 0.325,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU009', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU010",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU010\",\n  \"name\": \"Demo product 10\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"seasonal\",\n  \"unit_weight\": 0.35,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU010', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU011",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU011\",\n  \"name\": \"Demo product 11\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"intermittent\",\n  \"unit_weight\": 0.375,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU011', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create SIM_SKU012",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/product/create",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SIM_SKU012\",\n  \"name\": \"Demo product 12\",\n  \"category\": \"SIMULATION\",\n  \"description\": \"intermittent\",\n  \"unit_weight\": 0.4,\n  \"unit\": \"ITEM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Product UUID returned', () => pm.expect(data.productId).to.be.a('string').and.not.empty);",
+                  "    if (data.productId) pm.collectionVariables.set('product_SIM_SKU012', data.productId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Create 24 shelves - run once",
+      "item": [
+        {
+          "name": "SIM_WH01 / SIM_SHELF_001",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_001\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_001\",\n  \"productIds\": [\n    \"{{product_SIM_SKU001}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_001",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_001\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_001\",\n  \"productIds\": [\n    \"{{product_SIM_SKU001}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_002",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_002\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_002\",\n  \"productIds\": [\n    \"{{product_SIM_SKU002}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_002",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_002\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_002\",\n  \"productIds\": [\n    \"{{product_SIM_SKU002}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_003",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_003\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_003\",\n  \"productIds\": [\n    \"{{product_SIM_SKU003}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_003",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_003\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_003\",\n  \"productIds\": [\n    \"{{product_SIM_SKU003}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_004",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_004\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_004\",\n  \"productIds\": [\n    \"{{product_SIM_SKU004}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_004",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_004\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_004\",\n  \"productIds\": [\n    \"{{product_SIM_SKU004}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_005",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_005\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_005\",\n  \"productIds\": [\n    \"{{product_SIM_SKU005}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_005",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_005\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_005\",\n  \"productIds\": [\n    \"{{product_SIM_SKU005}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_006",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_006\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_006\",\n  \"productIds\": [\n    \"{{product_SIM_SKU006}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_006",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_006\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_006\",\n  \"productIds\": [\n    \"{{product_SIM_SKU006}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_007",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_007\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_007\",\n  \"productIds\": [\n    \"{{product_SIM_SKU007}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_007",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_007\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_007\",\n  \"productIds\": [\n    \"{{product_SIM_SKU007}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_008",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_008\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_008\",\n  \"productIds\": [\n    \"{{product_SIM_SKU008}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_008",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_008\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_008\",\n  \"productIds\": [\n    \"{{product_SIM_SKU008}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_009",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_009\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_009\",\n  \"productIds\": [\n    \"{{product_SIM_SKU009}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_009",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_009\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_009\",\n  \"productIds\": [\n    \"{{product_SIM_SKU009}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_010",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_010\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_010\",\n  \"productIds\": [\n    \"{{product_SIM_SKU010}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_010",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_010\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_010\",\n  \"productIds\": [\n    \"{{product_SIM_SKU010}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_011",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_011\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_011\",\n  \"productIds\": [\n    \"{{product_SIM_SKU011}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_011",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_011\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_011\",\n  \"productIds\": [\n    \"{{product_SIM_SKU011}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH01 / SIM_SHELF_012",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_012\",\n  \"warehouseId\": \"{{warehouse_SIM_WH01}}\",\n  \"deviceCode\": \"SIM_WH01_SIM_SHELF_012\",\n  \"productIds\": [\n    \"{{product_SIM_SKU012}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SIM_WH02 / SIM_SHELF_012",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/shelves",
+            "description": "Maps legacy single-SKU shelf to a monitored shelf. Weight/capacity/inventory fields have no corresponding API and remain in the source JSON.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SIM_SHELF_012\",\n  \"warehouseId\": \"{{warehouse_SIM_WH02}}\",\n  \"deviceCode\": \"SIM_WH02_SIM_SHELF_012\",\n  \"productIds\": [\n    \"{{product_SIM_SKU012}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Shelf created with product', () => pm.expect(data.productIds).to.have.lengthOf(1));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Demand forecasting - run manually after seeding",
+      "item": [
+        {
+          "name": "01 Verify demand catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/demand/catalog",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    const pairs = pm.response.json();",
+                  "    const seeded = pairs.filter(p => /^SIM_SKU\\d{3}$/.test(p.sku));",
+                  "    pm.test('24 seed warehouse/product pairs', () => pm.expect(seeded).to.have.lengthOf(24));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Update database forecast",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/demand/forecast-jobs",
+            "description": "Requires V13 and a completed initial training job. Runs PREDICT from DB history using the saved joblib; does not generate history."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 202) {",
+                  "    const data = pm.response.json();",
+                  "    pm.test('Job ID returned', () => pm.expect(data.jobId).to.be.a('string').and.not.empty);",
+                  "    if (data.jobId) pm.collectionVariables.set('jobId', data.jobId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Check job - repeat until SUCCEEDED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/demand/jobs/{{jobId}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Job has not failed', () => pm.expect(pm.response.json().status).to.not.be.oneOf(['FAILED', 'INTERRUPTED']));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Read latest forecast after SUCCEEDED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/demand/forecasts",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

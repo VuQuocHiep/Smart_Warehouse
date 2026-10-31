@@ -1,0 +1,38 @@
+name: Demand cloud batch
+
+on:
+  schedule:
+    # 05:00 Monday, 05:17 catch-up Monday, and 00:10 daily in Vietnam (UTC+7).
+    - cron: '0 22 * * 0'
+    - cron: '17 22 * * 0'
+    - cron: '10 17 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warehouse-demand-batch
+  cancel-in-progress: false
+
+jobs:
+  demand:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: AI/demand/requirements.txt
+      - name: Install pinned model dependencies
+        run: pip install -r AI/demand/requirements.txt
+      - name: Run pending training or prediction
+        working-directory: AI/demand
+        env:
+          WAREHOUSE_BACKEND_URL: ${{ secrets.WAREHOUSE_BACKEND_URL }}
+          DEMAND_BATCH_TOKEN: ${{ secrets.DEMAND_BATCH_TOKEN }}
+          OMP_NUM_THREADS: '1'
+          OPENBLAS_NUM_THREADS: '1'
+        run: python cloud_runner.py

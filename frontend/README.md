@@ -1,16 +1,40 @@
-# React + Vite
+# Smart Warehouse frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite 8 + Ant Design 6 + Redux Toolkit.
+Camera dùng html5-qrcode; tem dùng jsbarcode, định dạng Code128.
 
-Currently, two official plugins are available:
+## Chạy
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Dùng Node.js 22.12+ và backend đã cấu hình:
 
-## React Compiler
+```powershell
+npm ci
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Web http://localhost:5173; API mặc định http://localhost:8080.
+Đặt VITE_API_BASE_URL trong frontend/.env.local để dùng backend khác.
+Đây là biến lúc build: thay đổi cần restart dev server hoặc build lại.
 
-## Expanding the Oxlint configuration
+```powershell
+npm run build
+npm run preview
+npm run lint
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Giao diện
+
+- Login không có chọn vai trò; JWT quyết định trang đích, ưu tiên admin → manager → staff.
+- SMART / WAREHOUSE hai dòng cạnh logo.
+- Sidebar ba vai trò: mở 248 px, thu gọn 86 px.
+- Nhập/xuất và Cân hàng dùng component chung trong pages/staff.
+- Admin/manager có dự báo và quyền hiệu chuẩn/chỉnh sai số.
+- Camera cần localhost/HTTPS và quyền truy cập; có nhập SKU thủ công dự phòng.
+- Cân không tự đổi gram thành số lượng; nhập số lượng rồi cân đối chiếu.
+
+## Docker
+
+Dockerfile build React rồi phục vụ bằng Nginx. VITE_API_BASE_URL mặc định /backend.
+Nginx chuyển prefix sang service backend trong Compose, giữ request cùng origin.
+Không dùng hostname backend của Compose làm URL public trên Render.
+Xem [Docker](../docs/docker.md), [nhập/xuất](../docs/inventory.md), [HX711](../docs/hx711-weighing.md).

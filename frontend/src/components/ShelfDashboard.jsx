@@ -7,6 +7,7 @@ import { getAllProduct } from '../api/product'
 import { warehouseApi } from '../api/warehouse'
 import WarehouseSelector from './WarehouseSelector'
 import { sensorValue, SENSOR_STALE_MS } from '../utils/warehouseDisplay'
+import { formatDateTime } from '../utils/date'
 
 const range = (min, max, unit) => min == null && max == null ? 'Chưa cấu hình'
   : `${min ?? '…'} – ${max ?? '…'} ${unit}`
@@ -101,7 +102,7 @@ export default function ShelfDashboard({ readOnly = false }) {
           <Space wrap style={{ marginBottom: 16 }}>
             <Tag>{selected.warehouse.name}</Tag>
             <Tag color={stale ? 'orange' : 'blue'}>{sensorValue(reading.temperature, '°C')} / {sensorValue(reading.humidity, '%')}</Tag>
-            <Typography.Text type="secondary">{reading.recordedAt ? `Lần cuối: ${new Date(reading.recordedAt).toLocaleString('vi-VN')}` : 'Chưa nhận dữ liệu'}</Typography.Text>
+            <Typography.Text type="secondary">{reading.recordedAt ? `Lần cuối: ${formatDateTime(reading.recordedAt)}` : 'Chưa nhận dữ liệu'}</Typography.Text>
             {stale && <Tag color="orange">{reading.recordedAt ? 'Dữ liệu cũ' : 'Chờ dữ liệu'}</Tag>}
           </Space>
           <Table rowKey="productId" dataSource={items} pagination={false} scroll={{ x: 650 }} locale={{ emptyText: 'Chưa gán sản phẩm vào kệ' }} columns={[

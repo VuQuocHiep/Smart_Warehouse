@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BoxPlotOutlined,
   DashboardOutlined,
+  LineChartOutlined,
   DownOutlined,
   ExportOutlined,
   FileTextOutlined,
@@ -31,6 +32,11 @@ const { Header, Sider, Content } = Layout
 const { Text } = Typography
 
 const menuItems = [
+  {
+    key: '/manager/forecast',
+    icon: <LineChartOutlined />,
+    label: <Link to="/manager/forecast">Dự báo nhu cầu</Link>,
+  },
   {
     key: '/manager/overview',
     icon: <DashboardOutlined />,
@@ -159,13 +165,13 @@ export default function Manager() {
         collapsedWidth={86}
         onCollapse={setCollapsed}
         trigger={null}
-        width={320}
+        width={248}
       >
         <div className={collapsed ? 'manager-brand manager-brand--collapsed' : 'manager-brand'}>
           <div className="manager-logo-mark">
             <InboxOutlined />
           </div>
-          {!collapsed && <strong className="manager-brand-text">SMART WAREHOUSE</strong>}
+          {!collapsed && <strong className="manager-brand-text">SMART<br />WAREHOUSE</strong>}
         </div>
 
         <Menu

@@ -1,0 +1,67 @@
+# Aiven MySQL is provisioned separately; this blueprint creates no paid service.
+services:
+  - type: web
+    name: smart-warehouse-api
+    runtime: docker
+    plan: free
+    region: singapore
+    numInstances: 1
+    dockerContext: ./backend/iot
+    dockerfilePath: ./backend/iot/Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: cloud
+      - key: APP_CLOUD
+        value: "true"
+      - key: TZ
+        value: Asia/Ho_Chi_Minh
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xms48m -Xmx192m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=32m -XX:ActiveProcessorCount=1 -XX:+UseSerialGC -Xss512k
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        value: defaultdb
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: AIVEN_CA_PEM
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: IOT_INGEST_KEY
+        generateValue: true
+      - key: IOT_SCALE_DEVICE_CODE
+        value: ESP_ENV_01
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: DEMAND_EXECUTION_MODE
+        value: GITHUB_BATCH
+      - key: DEMAND_BATCH_TOKEN
+        generateValue: true
+      - key: DEMAND_GITHUB_TOKEN
+        sync: false
+      - key: DEMAND_GITHUB_REPOSITORY
+        value: VuQuocHiep/Smart_Warehouse
+      - key: DEMAND_GITHUB_REF
+        value: main
+  - type: web
+    name: smart-warehouse-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

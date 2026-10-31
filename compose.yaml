@@ -1,0 +1,73 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: iot
+      MYSQL_USER: warehouse
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u warehouse -D iot -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  ml:
+    build: ./AI/demand
+    restart: unless-stopped
+    environment:
+      DEMAND_SERVICE_TOKEN: ${DEMAND_SERVICE_TOKEN:?Set DEMAND_SERVICE_TOKEN in .env}
+    volumes:
+      - ml_data:/app/runtime
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; r = urllib.request.Request('http://127.0.0.1:8091/health', headers={'X-Service-Token': os.environ['DEMAND_SERVICE_TOKEN']}); urllib.request.urlopen(r, timeout=5).close()"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    build: ./backend/iot
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/iot?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      DB_USERNAME: warehouse
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      SPRING_JPA_SHOW_SQL: "false"
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      JWT_SECRET: ${JWT_SECRET:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-ADMINPTIT@gmail.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      IOT_INGEST_KEY: ${IOT_INGEST_KEY:?Set IOT_INGEST_KEY in .env}
+      IOT_SCALE_DEVICE_CODE: ${IOT_SCALE_DEVICE_CODE:-ESP_ENV_01}
+      MQ2_GAS_LEVEL1: ${MQ2_GAS_LEVEL1:-1800}
+      MQ2_GAS_LEVEL2: ${MQ2_GAS_LEVEL2:-2500}
+      MQ2_GAS_LEVEL3: ${MQ2_GAS_LEVEL3:-3200}
+      DEMAND_SERVICE_ENABLED: "true"
+      DEMAND_SERVICE_URL: http://ml:8091
+      DEMAND_SERVICE_TOKEN: ${DEMAND_SERVICE_TOKEN:?Set DEMAND_SERVICE_TOKEN in .env}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ml:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /backend
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8088}:80"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  mysql_data:
+  ml_data:

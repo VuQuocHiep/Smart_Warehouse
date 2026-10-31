@@ -43,6 +43,12 @@
   font-size: 29px;
 }
 
+.brand strong,
+.formBrand strong {
+  line-height: 1.15;
+  text-align: left;
+}
+
 .formBrand {
   justify-content: center;
   margin-bottom: 28px;
@@ -345,8 +351,7 @@
   font-size: 22px;
 }
 
-.field input,
-.roleSelect select {
+.field input {
   width: 100%;
   border: 0;
   outline: 0;
@@ -368,96 +373,6 @@
   color: #667085;
   background: transparent;
   cursor: pointer;
-}
-
-.roleLabel {
-  display: block;
-  margin: 2px 0 8px;
-  color: #344054;
-  font-size: 15px;
-}
-
-.roleSelect {
-  position: relative;
-  border: 1px solid #d8e0ec;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 15px 34px rgba(15, 23, 42, 0.08);
-}
-
-.roleLeadIcon {
-  position: absolute;
-  left: 20px;
-  top: 15px;
-  z-index: 1;
-  color: #344054;
-  font-size: 20px;
-}
-
-.roleSelect select {
-  height: 56px;
-  padding: 0 50px 0 56px;
-  appearance: none;
-  cursor: pointer;
-  color: #7a8496;
-}
-
-.roleSelect::after {
-  content: '⌄';
-  position: absolute;
-  right: 18px;
-  top: 12px;
-  color: #475467;
-  font-size: 24px;
-  pointer-events: none;
-}
-
-.roleMenu {
-  display: grid;
-  gap: 4px;
-  padding: 10px 16px 14px;
-  border-top: 1px solid #edf2f7;
-  border-radius: 0 0 8px 8px;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.roleMenu button {
-  display: grid;
-  grid-template-columns: 24px 1fr;
-  column-gap: 12px;
-  width: 100%;
-  padding: 8px 6px;
-  border: 0;
-  border-radius: 8px;
-  text-align: left;
-  background: transparent;
-  cursor: pointer;
-}
-
-.roleMenu button:hover,
-.roleMenu button.active {
-  background: #f8fbff;
-}
-
-.roleMenu button span {
-  width: 8px;
-  height: 8px;
-  align-self: center;
-  justify-self: center;
-  border-radius: 999px;
-  background: var(--role-color);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--role-color) 12%, transparent);
-}
-
-.roleMenu b {
-  color: #111827;
-  font-size: 14px;
-}
-
-.roleMenu small {
-  grid-column: 2;
-  color: #667085;
-  font-size: 12px;
 }
 
 .loginError {

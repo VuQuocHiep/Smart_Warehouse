@@ -8,12 +8,6 @@ import { setUser } from '../../redux/userSlice.js'
 import { decodeJwt, getRoleHomePath, getRolesFromToken, persistAuth } from '../../utils/auth.js'
 import warehouseHero from '../../assets/warehouse-login-hero.png'
 
-const roles = [
-  { key: 'admin', label: 'Admin', description: 'Quản trị hệ thống', color: '#1167f2' },
-  { key: 'manager', label: 'Manager', description: 'Quản lý kho', color: '#12a66a' },
-  { key: 'staff', label: 'Staff', description: 'Nhân viên kho', color: '#ff8a00' },
-]
-
 function CubeLogo({ small = false }) {
   return (
     <span className={small ? 'logoMark logoMarkSmall' : 'logoMark'} aria-hidden="true">
@@ -26,7 +20,6 @@ function CubeLogo({ small = false }) {
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [selectedRole, setSelectedRole] = useState('admin')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -49,7 +42,7 @@ export default function LoginPage() {
       }
 
       const tokenRoles = getRolesFromToken(token)
-      const role = tokenRoles.includes(selectedRole) ? selectedRole : tokenRoles[0]
+      const role = ['admin', 'manager', 'staff'].find((item) => tokenRoles.includes(item))
 
       if (!role) {
         throw new Error('Token không chứa vai trò hợp lệ')
@@ -77,8 +70,7 @@ export default function LoginPage() {
         localStorage.setItem('rememberLogin', 'true')
       }
 
-      const activeRoleInfo = roles.find((item) => item.key === role)
-      message.success(`Đăng nhập ${activeRoleInfo?.label || role} thành công`)
+      message.success('Đăng nhập thành công')
       navigate(getRoleHomePath(role), { replace: true })
     } catch (err) {
       setError(err.message || 'Không thể đăng nhập, vui lòng thử lại')
@@ -93,7 +85,7 @@ export default function LoginPage() {
         <header className="topBar">
           <div className="brand">
             <CubeLogo />
-            <strong>SMART WAREHOUSE</strong>
+            <strong>SMART<br />WAREHOUSE</strong>
           </div>
           <div className="topLinks">
             <span className="topLinkIcon">◎</span>
@@ -153,7 +145,7 @@ export default function LoginPage() {
         <form className="loginCard" onSubmit={handleSubmit}>
           <div className="formBrand">
             <CubeLogo small />
-            <strong>SMART WAREHOUSE</strong>
+            <strong>SMART<br />WAREHOUSE</strong>
           </div>
           <h2>Đăng nhập hệ thống</h2>
           <p>Sử dụng tài khoản được cấp để truy cập Smart Warehouse</p>
@@ -185,38 +177,6 @@ export default function LoginPage() {
               {showPassword ? '◉' : '◌'}
             </button>
           </label>
-
-          <label className="roleLabel" htmlFor="role">
-            Vai trò
-          </label>
-          <div className="roleSelect">
-            <span className="roleLeadIcon">♚</span>
-            <select
-              id="role"
-              value={selectedRole}
-              onChange={(event) => setSelectedRole(event.target.value)}
-            >
-              {roles.map((role) => (
-                <option key={role.key} value={role.key}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-            <div className="roleMenu">
-              {roles.map((role) => (
-                <button
-                  type="button"
-                  key={role.key}
-                  className={role.key === selectedRole ? 'active' : ''}
-                  onClick={() => setSelectedRole(role.key)}
-                >
-                  <span style={{ '--role-color': role.color }} />
-                  <b>{role.label}</b>
-                  <small>{role.description}</small>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {error ? <div className="loginError">{error}</div> : null}
 

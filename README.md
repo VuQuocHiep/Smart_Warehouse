@@ -1,209 +1,106 @@
-﻿# 🏭 Smart Warehouse – Hệ thống quản lý kho hàng thông minh
+# Smart Warehouse
 
-A full-stack IoT warehouse management system combining **ESP32 hardware**, **Spring Boot backend**, and a **React dashboard** to automate inventory tracking, environmental monitoring, and stock reconciliation.
+Hệ thống quản lý kho hàng tích hợp giám sát môi trường bằng ESP32, quản lý nhập/xuất, cân đối chiếu và dự báo nhu cầu.
 
----
+## Chức năng
 
-## 📋 Project Status
+- Quản lý sản phẩm, kho, kệ và tồn kho.
+- Nhập/xuất bằng QR/barcode hoặc SKU; lưu lịch sử giao dịch và in tem sản phẩm.
+- Giám sát nhiệt độ, độ ẩm và gas; phân tích cảnh báo và điều khiển đèn, quạt, còi.
+- Gợi ý vị trí kệ theo điều kiện bảo quản, sức chứa và lịch sử xuất hàng.
+- Hiệu chuẩn, trừ bì và cân đối chiếu phiếu bằng HX711.
+- Dự báo nhu cầu 14 ngày bằng LightGBM từ lịch sử nhập/xuất; lịch sử nhập ban đầu và giao dịch mới dùng chung nguồn REAL từ V16.
+- Xác thực JWT và phân quyền Admin, Manager, Staff.
 
-> **Phase: Active Development**
+## Công nghệ
 
-| Component | Status |
-|---|---|
-| 📐 System Architecture | ✅ Done |
-| 🗄️ Database Schema | ✅ Done (`V1__initial_database.sql`) |
-| ⚙️ Backend (Spring Boot) | 🔨 In Progress |
-| 🖥️ Frontend (React + Vite) | 🔨 In Progress |
-| 📡 Hardware (ESP32) | 🔨 In Progress |
-| 🐳 Docker Compose | 📋 Planned |
-
----
-
-## 🏗️ System Architecture
-
-```
-┌─────────────┐     ┌───────────┐     ┌──────────────────────┐     ┌────────────────────┐
-│   Sensors   │ --> │   ESP32   │ --> │  Backend + Database   │ --> │ Frontend Dashboard │
-│ (DHT22,     │     │ (Process  │     │ (Spring Boot + MySQL  │     │  (React + Vite     │
-│  MQ-2,      │     │  & send   │     │  + Redis + RabbitMQ) │     │  web dashboard)    │
-│  RC522,     │     │  via MQTT │     │                       │     │                    │
-│  HX711)     │     │  / HTTP)  │     │                       │     │                    │
-└─────────────┘     └───────────┘     └──────────────────────┘     └────────────────────┘
-       │                   │
-       │                   └──> On-site output: Fan (relay), Buzzer, LED, OLED display
-       │
-       └──> External alerts: Telegram / Zalo / Email
-```
-
-**Data flow:** `Sensor → ESP32 → Backend/DB → Frontend (real-time dashboard)`
-
----
-
-## ✨ Features
-
-### Feature 1 – Environmental Monitoring
-- **Temperature & Humidity** monitoring (DHT22) with automatic fan activation via relay
-- **Smoke / Gas / Fire detection** (MQ-2) with buzzer + LED alarm
-- Real-time data displayed on the web dashboard
-- Configurable alert thresholds; notifications via Telegram/Zalo/Email
-
-### Feature 2 – RFID Inventory Tracking
-- Two separate RC522 readers — one for **stock IN**, one for **stock OUT**
-- Scan RFID tag → automatically records the transaction to the database
-- LED feedback: 🟢 Green = success, 🔴 Red = unknown product / error
-- Optional OLED display showing SKU and product name on scan
-
-### Feature 3 – Load Cell Stock Reconciliation
-- Load cell (HX711) weighs total shelf load → calculates actual quantity
-- Cross-checks against system quantity (recorded by Feature 2)
-- Discrepancy detected → triggers 🔴 Red LED + system alert
-- Measurement settled after a 3-second stabilization delay to filter out vibration noise
-- Configurable check frequency (e.g., every 10 minutes or end-of-day)
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Backend** | Spring Boot 4.1 · Java 17 |
-| **Frontend** | React 19 · Vite 8 · Ant Design 6 · Redux Toolkit |
-| **Database** | MySQL 8.0 |
-| **DB Migration** | Flyway |
-| **Cache** | Redis |
-| **Message Queue** | RabbitMQ |
-| **Security** | Spring Security · JWT (OAuth2 Resource Server) |
-| **Realtime** | WebSocket (STOMP) |
-| **HTTP Client** | Spring Cloud OpenFeign |
-| **Email** | Spring Mail |
-| **Hardware** | ESP32 · DHT22 · MQ-2 · RC522 (×2) · HX711 · Load Cell 5kg |
-
----
-
-## 📁 Project Structure
-
-```
-Smart_Warehouse/
-├── backend/
-│   └── iot/                         # Spring Boot application
-│       ├── src/main/java/com/example/iot/
-│       │   ├── config/              # Security, RabbitMQ, Redis configs
-│       │   ├── controller/          # REST API controllers
-│       │   ├── dto/                 # Request / Response DTOs
-│       │   ├── entity/              # JPA entities
-│       │   ├── enums/               # Shared enumerations
-│       │   ├── exception/           # Global exception handling
-│       │   ├── mapper/              # MapStruct mappers
-│       │   ├── repository/          # Spring Data JPA repositories
-│       │   └── service/             # Business logic layer
-│       └── src/main/resources/
-│           ├── application.properties
-│           └── db/migration/
-│               └── V1__initial_database.sql   # Flyway initial schema
-├── frontend/                        # React + Vite application
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.js
-└── docs/
-    └── architecture.md              # Detailed system design document
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-Make sure the following are installed on your machine:
-
-| Tool | Version | Download |
+| Thành phần | Công nghệ | Thư mục |
 |---|---|---|
-| Java JDK | 17+ | [adoptium.net](https://adoptium.net) |
-| Maven | 3.9+ | Bundled (`mvnw`) |
-| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
-| MySQL | 8.0 | [mysql.com](https://dev.mysql.com/downloads/) |
+| Backend | Java 17, Spring Boot, Spring Security, JPA, Flyway | `backend/iot` |
+| Frontend | React, Vite, Ant Design, Redux Toolkit | `frontend` |
+| Database | MySQL 8.0 | `database` |
+| Dự báo | Python, FastAPI, LightGBM, joblib | `AI/demand` |
+| Thiết bị | ESP32, DHT22, MQ-2, HX711 | `hardware/warehouse_ai` |
 
-### 1. Clone the repository
+## Khởi chạy
 
-```bash
-git clone https://github.com/VuQuocHiep/Smart_Warehouse
-cd Smart_Warehouse
+### Local
+
+Yêu cầu Java 17, Maven 3.9 hoặc Maven Wrapper, Node.js 22.12+, Python và MySQL 8.0. Các lệnh dưới đây sử dụng PowerShell.
+
+Tạo database trong MySQL:
+
+```sql
+CREATE DATABASE IF NOT EXISTS iot CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-### 2. Configure environment variables
+**Service dự báo:** từ thư mục gốc dự án, tạo môi trường Python và cài thư viện lần đầu:
 
-Create a `.env` file or set the following environment variables before starting the backend:
-
-```bash
-DB_USERNAME=root
-DB_PASSWORD=your_mysql_password
+```powershell
+python -m venv AI/demand/.venv
+.\AI\demand\.venv\Scripts\python.exe -m pip install -r AI/demand/requirements.txt
 ```
 
-> **Note:** The database name is `smart_warehouse`. Flyway will create all tables automatically on first run.
+Đặt token nội bộ và khởi chạy service tại cổng **8091**:
 
-### 3. Run the Backend
+```powershell
+$env:DEMAND_SERVICE_TOKEN = '<token-noi-bo>'
+.\AI\demand\start.ps1
+```
 
-```bash
+**Backend:** mở terminal khác tại thư mục gốc dự án, sử dụng cùng token với service dự báo:
+
+```powershell
 cd backend/iot
-./mvnw spring-boot:run        # Linux / macOS
-mvnw.cmd spring-boot:run      # Windows
+$env:DB_USERNAME = 'root'
+$env:DB_PASSWORD = '<mat-khau-mysql>'
+$env:IOT_INGEST_KEY = '<khoa-khop-firmware>'
+$env:DEMAND_SERVICE_ENABLED = 'true'
+$env:DEMAND_SERVICE_URL = 'http://127.0.0.1:8091'
+$env:DEMAND_SERVICE_TOKEN = '<token-noi-bo>'
+./mvnw.cmd spring-boot:run
 ```
 
-On startup, **Flyway automatically runs** `V1__initial_database.sql` to create all tables. No manual SQL import needed.
+**Frontend:** mở terminal khác tại thư mục gốc dự án:
 
-The backend will be available at: `http://localhost:8080`
-
-### 4. Run the Frontend
-
-```bash
+```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-The frontend will be available at: `http://localhost:5173`
+Truy cập **http://localhost:5173**. Backend sử dụng cổng **8080**; Flyway tự quản lý schema khi khởi động.
 
----
+Đăng nhập bằng tài khoản **Admin/Manager**, tạo sản phẩm và gán vào kệ của kho. Mở **Dự báo nhu cầu**, chờ tác vụ hoàn tất rồi chọn kho/SKU để xem kết quả. Service tự huấn luyện khi chưa có model và lưu artifact tại `AI/demand/runtime`.
 
-## 🗄️ Database Migrations (Flyway)
+### Docker
 
-Migration scripts live at:
+Yêu cầu Docker Engine hoặc Docker Desktop ở chế độ Linux containers.
 
-```
-backend/iot/src/main/resources/db/migration/
-├── V1__initial_database.sql    ← Initial schema
-└── V2__....sql                 ← Future migrations
-```
+1. Sao chép cấu hình mẫu:
 
-**Rules for the team:**
-
-1. ❌ **Never edit** an existing migration file that is already committed to Git.
-2. ✅ To add a table or column, create a **new versioned file**:
+   ```powershell
+   Copy-Item .env.example .env
    ```
-   V2__add_notification_table.sql
-   V3__add_column_shelf_status.sql
+
+2. Điền mật khẩu database và token trong `.env`.
+3. Khởi chạy các service:
+
+   ```powershell
+   docker compose up -d --build
    ```
-3. Run the app — Flyway auto-applies only the new scripts.
 
----
+Truy cập **http://localhost:8088**. Cấu hình gồm frontend, backend, ML và MySQL; dữ liệu được lưu trong Docker volumes.
 
-## 📡 Hardware Components
+## Tài liệu
 
-| Component | Role | Feature |
-|---|---|---|
-| ESP32 | Main microcontroller | All |
-| DHT22 | Temperature + Humidity sensor | Feature 1 |
-| MQ-2 | Smoke / Gas sensor | Feature 1 |
-| Relay / MOSFET | Fan / buzzer control | Feature 1 |
-| RC522 (×2) | RFID reader (IN gate + OUT gate) | Feature 2 |
-| RFID Tag / Card (13.56 MHz) | Product identification | Feature 2 |
-| HX711 + Load Cell 5kg | Shelf weight measurement | Feature 3 |
-| OLED 0.96" I2C | On-site display (SKU, qty, status) | Feature 2 & 3 |
-| LED (Red / Green) | Visual status indicator | All |
-| Buzzer | Audio alarm | Feature 1 |
-
----
-
-## 📄 Documentation
-
-- [System Architecture](docs/architecture.md) — Full feature specs, hardware list, data flow diagrams
+- [Kiến trúc hệ thống](docs/architecture.md)
+- [Triển khai Docker](docs/docker.md)
+- [Triển khai cloud miễn phí: Render, Aiven, GitHub Actions](docs/cloud-render.md)
+- [Biên bản nghiệm thu cloud IoT mức 3](docs/cloud-acceptance.md)
+- [Nhập/xuất, quét mã và in tem](docs/inventory.md)
+- [Cấu hình và hiệu chuẩn cân HX711](docs/hx711-weighing.md)
+- [Giám sát bảo quản sản phẩm](docs/product-environment-monitoring.md)
+- [Mô hình cảnh báo môi trường](AI/HYBRID.md)
+- [Dự báo nhu cầu](docs/demand-forecasting.md)
+- [Dữ liệu mẫu](database/seeds/README.md)

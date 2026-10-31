@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:8080'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 const request = async (
   endpoint,
   { method = 'GET', body, headers = {}, ...options } = {}
@@ -53,6 +53,7 @@ const request = async (
 
     throw new Error(
       responseBody?.message ||
+      (typeof responseBody === 'string' ? responseBody : null) ||
       responseBody?.error ||
       `Backend lỗi ${response.status}`
     )

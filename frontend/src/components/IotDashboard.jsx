@@ -13,6 +13,7 @@ import { AI_MODEL_NAME, formatRiskSources, getRiskPrediction } from '../utils/se
 import { getWarehouseHistory, getWarehouseReading, WAREHOUSE_NAMES } from '../utils/warehouseSensors.js'
 import './iot-dashboard.css'
 import { sensorValue } from '../utils/warehouseDisplay'
+import { formatDateTime } from '../utils/date'
 
 const formatTime = (value) => {
   if (!value) return 'Chưa có dữ liệu'
@@ -232,7 +233,7 @@ export default function IotDashboard() {
 
         <div className="iot-metrics">
           <MetricCard
-            detail="DHT11"
+            detail="DHT22"
             icon={<FireOutlined />}
             label="Nhiệt độ"
             tone="temp"
@@ -262,6 +263,7 @@ export default function IotDashboard() {
         </div>
 
         <div className="iot-selected-actions">
+          {selectedLatest.recordedAt && <span>Lần đo cuối: {formatDateTime(selectedLatest.recordedAt)}{selectedLatest.stale ? ' · Dữ liệu cũ' : ''}</span>}
           <Button icon={<ReloadOutlined spin={loading} />} onClick={loadData}>
             Tải lại
           </Button>

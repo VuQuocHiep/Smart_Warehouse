@@ -49,6 +49,9 @@ export function inferRiskLevel(sensor) {
 }
 
 export function getRiskPrediction(sensor) {
+  if (sensor?.stale && sensor.recordedAt) {
+    return { riskLevel: null, label: 'Dữ liệu cũ · thiết bị chưa cập nhật', status: 'STALE', action: 'Chờ số đo mới', actionCode: null, color: 'warning', tone: 'pending', confidence: null }
+  }
   if (sensor && sensor.simulated === false && !sensor.recordedAt) {
     return { riskLevel: null, label: 'Chưa có dữ liệu', status: 'NO_DATA', action: 'Chờ dữ liệu', actionCode: null, color: 'default', tone: 'pending', confidence: null }
   }
