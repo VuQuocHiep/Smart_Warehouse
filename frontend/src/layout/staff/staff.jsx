@@ -6,13 +6,11 @@ import {
   DashboardOutlined,
   DownOutlined,
   ExportOutlined,
-  HistoryOutlined,
   ImportOutlined,
   InboxOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  RadarChartOutlined,
   SearchOutlined,
   UserOutlined,
   WarningOutlined,
@@ -44,11 +42,6 @@ const menuItems = [
     label: <Link to="/staff/stock-out">Xuất kho</Link>,
   },
   {
-    key: '/staff/rfid',
-    icon: <RadarChartOutlined />,
-    label: <Link to="/staff/rfid">RFID</Link>,
-  },
-  {
     key: '/staff/weighing',
     icon: <BoxPlotOutlined />,
     label: <Link to="/staff/weighing">Cân hàng</Link>,
@@ -57,11 +50,6 @@ const menuItems = [
     key: '/staff/shelve',
     icon: <BoxPlotOutlined />,
     label: <Link to="/staff/shelve">Kệ kho</Link>,
-  },
-  {
-    key: '/staff/history',
-    icon: <HistoryOutlined />,
-    label: <Link to="/staff/history">Lịch sử công việc</Link>,
   },
   {
     key: '/staff/alert',
