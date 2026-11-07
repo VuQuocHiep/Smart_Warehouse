@@ -7,15 +7,12 @@ import {
   LineChartOutlined,
   DownOutlined,
   ExportOutlined,
-  FileTextOutlined,
-  HistoryOutlined,
   ImportOutlined,
   InboxOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ProductOutlined,
-  RadarChartOutlined,
   SearchOutlined,
   UserOutlined,
   WifiOutlined,
@@ -68,11 +65,6 @@ const menuItems = [
     label: <Link to="/manager/stock-out">Xuất kho</Link>,
   },
   {
-    key: '/manager/rfid',
-    icon: <RadarChartOutlined />,
-    label: <Link to="/manager/rfid">RFID</Link>,
-  },
-  {
     key: '/manager/weighing',
     icon: <BoxPlotOutlined />,
     label: <Link to="/manager/weighing">Cân hàng</Link>,
@@ -86,16 +78,6 @@ const menuItems = [
     key: '/manager/alert',
     icon: <WarningOutlined />,
     label: <Link to="/manager/alert">Cảnh báo</Link>,
-  },
-  {
-    key: '/manager/history',
-    icon: <HistoryOutlined />,
-    label: <Link to="/manager/history">Lịch sử</Link>,
-  },
-  {
-    key: '/manager/report',
-    icon: <FileTextOutlined />,
-    label: <Link to="/manager/report">Báo cáo</Link>,
   },
 ]
 
