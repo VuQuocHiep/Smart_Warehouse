@@ -46,10 +46,14 @@ bool beginBackendRequest(HTTPClient& http, WiFiClient& plain, WiFiClientSecure& 
       return false;
     }
     if (time(nullptr) < 1700000000) {
-      configTime(0, 0, "pool.ntp.org", "time.google.com");
       unsigned long started = millis();
-      while (time(nullptr) < 1700000000 && millis() - started < 10000UL) vTaskDelay(pdMS_TO_TICKS(200));
-      if (time(nullptr) < 1700000000) { Serial.println("HTTPS: chua dong bo duoc gio NTP"); return false; }
+      while (time(nullptr) < 1700000000 && millis() - started < 30000UL && WiFi.status() == WL_CONNECTED) {
+        vTaskDelay(pdMS_TO_TICKS(200));
+      }
+      if (time(nullptr) < 1700000000) {
+        Serial.println("HTTPS: chua dong bo duoc gio NTP sau 30 giay; kiem tra Internet/DNS/UDP 123, thu hotspot dien thoai.");
+        return false;
+      }
     }
     secure.setCACert(WAREHOUSE_ROOT_CA);
     secure.setHandshakeTimeout(12);
@@ -390,6 +394,8 @@ DHT dht(DHTPIN, DHTTYPE);
 bool aiFault = true;
 bool redState = false;
 const unsigned long READ_INTERVAL_MS = 60000UL;
+const unsigned long DHT_RETRY_INTERVAL_MS = 5000UL;
+unsigned long environmentReadIntervalMs = READ_INTERVAL_MS;
 unsigned long lastReading = 0;
 unsigned long lastBlink = 0;
 
@@ -503,11 +509,32 @@ void environmentNetworkTask(void*) {
   }
 }
 
+void sampleEnvironment() {
+  if (millis() - lastReading < environmentReadIntervalMs) return;
+  lastReading = millis();
+  Serial.printf("DHT: bat dau doc, GPIO=%d, uptime=%lu ms\n", DHTPIN, lastReading);
+  EnvironmentSample sample = {dht.readTemperature(), dht.readHumidity(), analogRead(MQ2_PIN)};
+  if (!isfinite(sample.temperature) || !isfinite(sample.humidity)) {
+    environmentReadIntervalMs = DHT_RETRY_INTERVAL_MS;
+    Serial.printf("DHT: doc loi, temperature=%.2f, humidity=%.2f; thu lai sau 5 giay\n",
+        sample.temperature, sample.humidity);
+    indicateFault();
+    return;
+  }
+  environmentReadIntervalMs = READ_INTERVAL_MS;
+  Serial.printf("DHT: temperature=%.2f C, humidity=%.2f %%\n", sample.temperature, sample.humidity);
+  JsonDocument log;
+  log["deviceCode"] = deviceCode; log["temperature"] = sample.temperature;
+  log["humidity"] = sample.humidity; log["gas"] = sample.gas; log["uptimeMs"] = millis();
+  Serial.print("MQ2_SAMPLE:"); serializeJson(log, Serial); Serial.println();
+  xQueueOverwrite(environmentSamples, &sample);
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setTimeout(100);
   delay(1000);
-  Serial.println("FIRMWARE HX711: INSTANT-RAW-V3");
+  Serial.println("FIRMWARE: CLOUD-DHT-TRACE-V4");
   Serial.println("De mat can trong khi bat nguon; tu tru bi nhu ban test.");
   scale.begin(HX711_DT, HX711_SCK);
   prefs.begin("hx711", false);
@@ -534,6 +561,8 @@ void setup() {
   digitalWrite(BUZZER, LOW);
   analogReadResolution(12);
   dht.begin();
+  delay(2000); // Preserve the DHT startup settling time from the original sketch.
+  Serial.printf("DHT: khoi tao DHT22 tai GPIO=%d; doc lan dau truoc xu ly can\n", DHTPIN);
   scaleCommands = xQueueCreate(1, sizeof(ScaleCommandMessage));
   environmentSamples = xQueueCreate(1, sizeof(EnvironmentSample));
   environmentResults = xQueueCreate(1, sizeof(int));
@@ -544,6 +573,10 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
+  // Start SNTP once before the HTTP tasks. Repeated configTime() calls would
+  // restart synchronization while the other task is still waiting for time.
+  // It synchronizes once Wi-Fi connects; HX711 acquisition never waits here.
+  configTime(0, 0, "time.google.com", "pool.ntp.org", "time.cloudflare.com");
   Serial.print("Backend moi truong: "); Serial.println(serverUrl);
   Serial.print("Backend can: "); Serial.println(scaleServerUrl);
   // Only these tasks do HTTP. HX711/Preferences stay entirely in setup()/loop().
@@ -554,6 +587,8 @@ void setup() {
 }
 
 void loop() {
+  // Obtain/log environmental readings before any scale command or acquisition.
+  sampleEnvironment();
   handleScaleSerial();
   processScaleCommands();
   updateScale();
@@ -566,17 +601,6 @@ void loop() {
     lastBlink = millis();
     redState = !redState;
     digitalWrite(LED_RED, redState ? HIGH : LOW);
-  }
-  if (millis() - lastReading >= READ_INTERVAL_MS) {
-    lastReading = millis();
-    EnvironmentSample sample = {dht.readTemperature(), dht.readHumidity(), analogRead(MQ2_PIN)};
-    if (isfinite(sample.temperature) && isfinite(sample.humidity)) {
-      JsonDocument log;
-      log["deviceCode"] = deviceCode; log["temperature"] = sample.temperature;
-      log["humidity"] = sample.humidity; log["gas"] = sample.gas; log["uptimeMs"] = millis();
-      Serial.print("MQ2_SAMPLE:"); serializeJson(log, Serial); Serial.println();
-      xQueueOverwrite(environmentSamples, &sample);
-    } else { Serial.println("Khong doc duoc DHT22"); indicateFault(); }
   }
   delay(10);
 }

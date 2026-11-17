@@ -23,4 +23,8 @@ public interface ShelfStockRepository extends JpaRepository<ShelfStockEntity, St
 
     @Query("select coalesce(sum(s.quantity), 0L) from ShelfStockEntity s where s.shelfId = :shelfId")
     long sumQuantity(@Param("shelfId") String shelfId);
+
+    /** Đọc không khóa, dùng cho luồng chỉ đọc (gợi ý kệ). */
+    @Query("select coalesce(sum(s.quantity), 0L) from ShelfStockEntity s where s.shelfId = :shelfId and s.productId = :productId")
+    long sumQuantityByShelfAndProduct(@Param("shelfId") String shelfId, @Param("productId") String productId);
 }

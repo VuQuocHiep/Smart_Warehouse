@@ -1,0 +1,96 @@
+Created using the built-in image_gen tool. Input: cau-truc-du-an.png
+
+FRONTEND
+Edit target: the attached local image of the Smart Warehouse project directory structure. Produce ONE standalone cropped card containing ONLY the FRONTEND panel. This is one of four separate requested image files, so do not make a collage and do not include any other panels. Preserve the source's very simple flat report style: white opaque background, thin light blue-gray rectangular border, blue bold sans-serif heading, black regular monospaced directory tree, left alignment, generous but compact margins. No icons, folder illustrations, shading, decorative features or added prose. Keep the directory hierarchy, capitalization, underscores, dots and filenames EXACT. Remove the global title, overview, footers, and all other panels. In the ESP32 card specifically REMOVE the entire 'Cấu hình riêng khi thiết lập' section and REMOVE the entire 'Các chức năng trong sketch' section including all bullets. The only text on this card should be the following heading and directory tree. Ensure large legible crisp typography with balanced line spacing, fully connected tree guide lines and no clipped characters. Make a compact portrait or nearly square card fitted to the full tree, with consistent readable text and modest bottom margin.
+Heading verbatim: 01  FRONTEND · React / Vite
+Directory tree verbatim:
+frontend/
+├── public/
+├── src/
+│   ├── api/
+│   ├── components/
+│   ├── hooks/
+│   ├── layout/
+│   ├── pages/
+│   │   ├── admin/
+│   │   ├── manager/
+│   │   ├── staff/
+│   │   └── login/
+│   ├── redux/
+│   ├── router/
+│   ├── utils/
+│   ├── App.jsx
+│   └── main.jsx
+├── package.json
+├── vite.config.js
+└── Dockerfile
+Do not add, delete, duplicate or rename any tree entries. Retain only this ONE panel, no other content.
+
+---
+
+BACKEND
+Edit target: the attached local image of the Smart Warehouse project directory structure. Produce ONE standalone cropped card containing ONLY the BACKEND panel. This is one of four separate requested image files, so do not make a collage and do not include any other panels. Preserve the source's very simple flat report style: white opaque background, thin light blue-gray rectangular border, blue bold sans-serif heading, black regular monospaced directory tree, left alignment, generous but compact margins. No icons, folder illustrations, shading, decorative features or added prose. Keep the directory hierarchy, capitalization, underscores, dots and filenames EXACT. Remove the global title, overview, footers, and all other panels. In the ESP32 card specifically REMOVE the entire 'Cấu hình riêng khi thiết lập' section and REMOVE the entire 'Các chức năng trong sketch' section including all bullets. The only text on this card should be the following heading and directory tree. Ensure large legible crisp typography with balanced line spacing, fully connected tree guide lines and no clipped characters. Make a compact portrait or nearly square card fitted to the full tree, with consistent readable text and modest bottom margin.
+Heading verbatim: 02  BACKEND · Spring Boot
+Directory tree verbatim:
+backend/iot/
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/iot/
+│   │   │   ├── config/
+│   │   │   ├── controller/
+│   │   │   ├── dto/
+│   │   │   │   ├── request/
+│   │   │   │   └── response/
+│   │   │   ├── entity/
+│   │   │   ├── enums/
+│   │   │   ├── exception/
+│   │   │   ├── mapper/
+│   │   │   ├── repository/
+│   │   │   ├── service/
+│   │   │   └── IotApplication.java
+│   │   └── resources/
+│   │       ├── ai/
+│   │       ├── db/migration/
+│   │       └── application.properties
+│   └── test/
+├── pom.xml
+└── Dockerfile
+Do not add, delete, duplicate or rename any tree entries. Retain only this ONE panel, no other content.
+
+---
+
+AI
+Edit target: the attached local image of the Smart Warehouse project directory structure. Produce ONE standalone cropped card containing ONLY the AI panel. This is one of four separate requested image files, so do not make a collage and do not include any other panels. Preserve the source's very simple flat report style: white opaque background, thin light blue-gray rectangular border, blue bold sans-serif heading, black regular monospaced directory tree, left alignment, generous but compact margins. No icons, folder illustrations, shading, decorative features or added prose. Keep the directory hierarchy, capitalization, underscores, dots and filenames EXACT. Remove the global title, overview, footers, and all other panels. In the ESP32 card specifically REMOVE the entire 'Cấu hình riêng khi thiết lập' section and REMOVE the entire 'Các chức năng trong sketch' section including all bullets. The only text on this card should be the following heading and directory tree. Ensure large legible crisp typography with balanced line spacing, fully connected tree guide lines and no clipped characters. Make a compact portrait or nearly square card fitted to the full tree, with consistent readable text and modest bottom margin.
+Heading verbatim: 03  AI · Huấn luyện / Dự báo nhu cầu
+Directory tree verbatim:
+AI/
+├── data/
+├── models/
+├── reports/
+├── train_temperature_humidity.py
+├── requirements.txt
+└── demand/
+    ├── service.py
+    ├── demand_model.py
+    ├── cloud_runner.py
+    ├── runtime/
+    ├── test_demand_model.py
+    ├── test_service.py
+    ├── test_cloud_runner.py
+    ├── smoke_test.py
+    ├── requirements.txt
+    ├── start.ps1
+    └── Dockerfile
+Do not add, delete, duplicate or rename any tree entries. Retain only this ONE panel, no other content.
+
+---
+
+ESP32
+Edit target: the attached local image of the Smart Warehouse project directory structure. Produce ONE standalone cropped card containing ONLY the ESP32 panel. This is one of four separate requested image files, so do not make a collage and do not include any other panels. Preserve the source's very simple flat report style: white opaque background, thin light blue-gray rectangular border, blue bold sans-serif heading, black regular monospaced directory tree, left alignment, generous but compact margins. No icons, folder illustrations, shading, decorative features or added prose. Keep the directory hierarchy, capitalization, underscores, dots and filenames EXACT. Remove the global title, overview, footers, and all other panels. In the ESP32 card specifically REMOVE the entire 'Cấu hình riêng khi thiết lập' section and REMOVE the entire 'Các chức năng trong sketch' section including all bullets. The only text on this card should be the following heading and directory tree. Ensure large legible crisp typography with balanced line spacing, fully connected tree guide lines and no clipped characters. Make this a compact wide landscape card, roughly 3:1, tightly fitted to its short four-line tree, with no empty bottom area.
+Heading verbatim: 04  THIẾT BỊ · ESP32 / Arduino
+Directory tree verbatim:
+hardware/
+└── warehouse_ai/
+    ├── warehouse_ai.ino
+    └── config.example.h
+Do not add, delete, duplicate or rename any tree entries. Retain only this ONE panel, no other content.
