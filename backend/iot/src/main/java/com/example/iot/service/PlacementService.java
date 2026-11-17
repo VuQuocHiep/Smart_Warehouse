@@ -17,7 +17,6 @@ import com.example.iot.dto.request.StockRequest;
 import com.example.iot.entity.MonitoredShelf;
 import com.example.iot.entity.ProductEntity;
 import com.example.iot.entity.ProductEnvironmentAlert;
-import com.example.iot.entity.ShelfStockEntity;
 import com.example.iot.entity.StockTransactionEntity.StockType;
 import com.example.iot.entity.WarehouseEntity;
 import com.example.iot.repository.MonitoredShelfRepository;
@@ -167,8 +166,7 @@ public class PlacementService {
         }
 
         // 3. Gom cùng loại
-        int onShelf = shelfStocks.findByShelfIdAndProductId(shelf.getId(), product.getProductId())
-                .map(ShelfStockEntity::getQuantity).orElse(0);
+        int onShelf = (int) shelfStocks.sumQuantityByShelfAndProduct(shelf.getId(), product.getProductId());
         if (onShelf > 0) {
             score += 5;
             reasons.add("Kệ đã có sẵn " + onShelf + " hàng này, gom cùng chỗ");

@@ -1,0 +1,21 @@
+Generated using the built-in image_gen tool.
+
+Use case: infographic-diagram.
+Create ONE high-resolution landscape hardware system design diagram for a Vietnamese university project report about Smart Warehouse. Title exactly: "SƠ ĐỒ THIẾT KẾ HỆ THỐNG PHẦN CỨNG". Subtitle: "SMART WAREHOUSE • ESP32". White background, professional engineering report style, crisp flat vector-like component illustrations, navy text, restrained blue and teal accents, highly legible Vietnamese typography, spacious layout, clean right-angle arrow connectors, no decorative warehouse background, no watermark. Landscape approximately 16:10, suitable for full page printing. Make the diagram technically precise as a FUNCTIONAL BLOCK DIAGRAM with GPIO labels, not a breadboard wiring photograph.
+
+Composition: central large ESP32 DevKit module with simplified realistic small board drawing and clean labeled connection ports. Left column titled "KHỐI CẢM BIẾN" with three vertically spaced branches. Right column titled "KHỐI CHẤP HÀNH" with LED, fan, buzzer branches. At top, small network path ESP32 <-> Wi-Fi router <-> backend cloud, clearly secondary to hardware. Bottom separated supply block and concise connection legend.
+
+Required exact connections and labels, preserve all GPIO numbers:
+1. Left upper: DHT22 component illustration, labels "DHT22" and "Nhiệt độ • Độ ẩm". One blue data arrow from DHT22 to ESP32 left input labeled "DATA → GPIO4".
+2. Left middle: MQ-2 module drawing, labels "MQ-2" and "Khói • Khí gas". Analog signal path MQ-2 AO -> small conditioning block labeled "Ghép mức ADC" with sublabel "0–3,3 V" -> ESP32 left input labeled "AO → GPIO34". No direct 5V analog signal to ESP32.
+3. Left lower: metal bar load-cell under a little weighing platform illustration labeled "Load cell 5 kg", four-wire connection labeled "E+ / E− / A+ / A−" to green module labeled "HX711". HX711 -> ESP32 separate arrow labeled "DT → GPIO16"; ESP32 -> HX711 separate opposite arrow labeled "GPIO21 → SCK". Explicit distinguish the two directions correctly. This branch is "KHỐI CÂN".
+4. Right upper LED block: two LED illustrations red and green. Separate ESP32 outputs pass through small resistor symbols to the respective LEDs. Label red line "GPIO18 → LED đỏ", green line "GPIO5 → LED xanh". Small note "Điện trở hạn dòng".
+5. Right middle: ESP32 output labeled "GPIO22" -> small block "Mạch công suất" -> fan illustration labeled "Quạt thông gió".
+6. Right lower: ESP32 output labeled "GPIO23" -> small block "Mạch đệm" -> buzzer illustration labeled "Còi cảnh báo".
+7. Central ESP32 label "ESP32" and small subtitle "Thu thập • Xử lý • Điều khiển".
+8. Network path centered above ESP32: ESP32 bidirectional wireless link to router labeled "Wi-Fi"; router bidirectional link to cloud block labeled "Backend Spring Boot"; label path "HTTP / HTTPS" and small secondary text "Gửi số đo • Nhận lệnh". These are communication links, not wired GPIO. Do not add MQTT, RFID, camera, Arduino Uno, Raspberry Pi, LCD, extra MCUs, databases, AI service, or multiple ESP32 boards.
+9. Bottom horizontal separated power band: block labeled "KHỐI NGUỒN" with text "Nguồn DC • Ổn áp 5 V / 3,3 V"; orange dashed arrows indicating power distribution to ESP32, sensors and actuator driver blocks. Clearly distinguish orange dashed supply from blue measurement and teal control arrows. Text "GND chung giữa các khối". No power-output claim for ESP32 pins; fan and buzzer are driven through the driver stages.
+10. Bottom small legend with colored line samples labeled "Tín hiệu đo", "Tín hiệu điều khiển", "Cấp nguồn".
+Caption inside lower margin in smaller readable text: "Sơ đồ khối và chân tín hiệu theo firmware; khối đệm, ghép mức và nguồn thể hiện phương án thiết kế."
+
+Prioritize readability, clear signal flow, all required port numbers and exact Vietnamese labels. Do not clutter with tiny text or unrelated components. No connecting arrows crossing through boxes or over labels.
